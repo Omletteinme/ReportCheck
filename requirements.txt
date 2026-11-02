@@ -1,0 +1,10 @@
+torch
+transformers>=4.57
+peft
+trl
+accelerate
+bitsandbytes
+datasets
+sentence-transformers
+textstat
+trimesh

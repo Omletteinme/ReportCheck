@@ -1,0 +1,227 @@
+{
+ "regions": {
+  "head": {
+   "anchor": [
+    -0.0051,
+    0.3622,
+    -0.0297
+   ],
+   "nodes": [
+    "brain",
+    "skull"
+   ]
+  },
+  "neck": {
+   "anchor": [
+    -0.0054,
+    0.205,
+    0.0022
+   ],
+   "nodes": [
+    "airway"
+   ]
+  },
+  "mediastinum": {
+   "anchor": [
+    0.005,
+    0.0611,
+    0.0311
+   ],
+   "nodes": [
+    "aorta",
+    "airway"
+   ]
+  },
+  "heart": {
+   "anchor": [
+    0.0144,
+    0.0311,
+    0.0311
+   ],
+   "nodes": [
+    "heart"
+   ]
+  },
+  "lung-r-upper": {
+   "anchor": [
+    -0.0476,
+    0.1,
+    -0.0088
+   ],
+   "nodes": [
+    "lung_r_upper",
+    "lung_r_upper_hull"
+   ]
+  },
+  "lung-r-mid": {
+   "anchor": [
+    -0.0651,
+    0.0272,
+    0.0286
+   ],
+   "nodes": [
+    "lung_r_mid",
+    "lung_r_mid_hull"
+   ]
+  },
+  "lung-r-lower": {
+   "anchor": [
+    -0.0607,
+    0.0176,
+    -0.0494
+   ],
+   "nodes": [
+    "lung_r_lower",
+    "lung_r_lower_hull"
+   ]
+  },
+  "lung-l-upper": {
+   "anchor": [
+    0.0623,
+    0.0868,
+    -0.003
+   ],
+   "nodes": [
+    "lung_l_upper",
+    "lung_l_upper_hull"
+   ]
+  },
+  "lung-l-mid": {
+   "anchor": [
+    0.0668,
+    0.051,
+    -0.0199
+   ],
+   "nodes": [
+    "lung_l_upper",
+    "lung_l_upper_hull",
+    "lung_l_lower",
+    "lung_l_lower_hull"
+   ]
+  },
+  "lung-l-lower": {
+   "anchor": [
+    0.0712,
+    0.0152,
+    -0.0368
+   ],
+   "nodes": [
+    "lung_l_lower",
+    "lung_l_lower_hull"
+   ]
+  },
+  "pleura-r": {
+   "anchor": [
+    -0.1132,
+    -0.0013,
+    -0.0203
+   ],
+   "nodes": [
+    "lung_r_upper",
+    "lung_r_upper_hull",
+    "lung_r_mid",
+    "lung_r_mid_hull",
+    "lung_r_lower",
+    "lung_r_lower_hull"
+   ]
+  },
+  "pleura-l": {
+   "anchor": [
+    0.1149,
+    -0.0275,
+    0.0041
+   ],
+   "nodes": [
+    "lung_l_upper",
+    "lung_l_upper_hull",
+    "lung_l_lower",
+    "lung_l_lower_hull"
+   ]
+  },
+  "ribs": {
+   "anchor": [
+    -0.1328,
+    0.0561,
+    0.0048
+   ],
+   "nodes": [
+    "ribs",
+    "sternum",
+    "clavicles"
+   ]
+  },
+  "spine": {
+   "anchor": [
+    -0.0052,
+    0.0468,
+    -0.0497
+   ],
+   "nodes": [
+    "spine"
+   ]
+  },
+  "diaphragm": {
+   "anchor": [
+    -0.0559,
+    -0.0043,
+    0.0287
+   ],
+   "nodes": [
+    "diaphragm"
+   ]
+  },
+  "abdomen": {
+   "anchor": [
+    -0.0074,
+    -0.0803,
+    0.0439
+   ],
+   "nodes": [
+    "liver",
+    "stomach"
+   ]
+  },
+  "pelvis": {
+   "anchor": [
+    -0.0052,
+    -0.3176,
+    -0.0601
+   ],
+   "nodes": [
+    "pelvis"
+   ]
+  }
+ },
+ "overview": {
+  "target": [
+   0.0,
+   0.0,
+   0.0
+  ],
+  "height": 1.229,
+  "width": 0.5
+ },
+ "full": {
+  "target": [
+   0.0,
+   -0.404,
+   0.0
+  ],
+  "height": 1.823,
+  "width": 0.734
+ },
+ "bounds": {
+  "min": [
+   -0.339,
+   -1.263,
+   -0.144
+  ],
+  "max": [
+   0.328,
+   0.456,
+   0.148
+  ]
+ },
+ "credit": "BodyParts3D, \u00a9 The Database Center for Life Science licensed under CC Attribution 4.0 International",
+ "license": "https://dbarchive.biosciencedbc.jp/en/bodyparts3d/lic.html"
+}

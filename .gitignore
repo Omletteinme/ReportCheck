@@ -1,0 +1,18 @@
+# environment and caches
+.venv/
+__pycache__/
+.pytest_cache/
+.claude/
+
+# downloaded raw data (re-download: see README); anatomy.glb built from it IS committed so the demo runs after a clone
+data/raw/
+
+# labels assigned by Claude: keep out of the repo until teammates finish their own blind labels (avoids biasing them)
+results/human_labeling/claude_key.csv
+results/human_labeling/filled/
+results/*_labels.csv
+results/smoke_baseline_labels.md
+results/_archive/
+
+# local scratch
+*.log

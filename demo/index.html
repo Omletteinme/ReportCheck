@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Report Simplifier Check</title>
+<script type="importmap">{"imports":{"three":"/vendor/three/build/three.module.min.js","three/addons/":"/vendor/three/examples/jsm/"}}</script>
+<script src="/vendor/gsap/gsap.min.js"></script>
+<style>
+  :root {
+    --page: #d4dee8; --frame: #ecf0f6; --frame-line: rgba(255, 255, 255, .8);
+    --card: #ffffff; --card-2: #f4f6fa; --ink: #101218; --on-ink: #ffffff;
+    --muted: #5f6675; --line: #e3e7ee; --shadow: 0 1px 2px rgba(16, 18, 24, .04), 0 8px 24px rgba(16, 18, 24, .04);
+    --yellow: #fbe96c; --on-yellow: #2d2600; --focus: #2f6df6;
+    --good: #1f8a4c; --warn: #9a6700; --bad: #c0392b;
+    --lvl-unlikely: #6b7a90; --lvl-possible: #9a6700; --lvl-likely: #7a3db8;
+    --flag-bg: #fde7e4;
+    --mk-finding: #d9480f; --mk-uncertain: #f5c518; --mk-uncertain-ink: #3b2e00; --mk-normal: #2f6df6;
+    --bar: #d9dde5;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: #0d1117; --frame: #161c26; --frame-line: rgba(255, 255, 255, .06);
+      --card: #1e2632; --card-2: #263040; --ink: #eef1f6; --on-ink: #101218;
+      --muted: #a4aebf; --line: #2d3746; --shadow: none;
+      --yellow: #f5df5a; --on-yellow: #2d2600; --focus: #8db0ff;
+      --good: #55c185; --warn: #e0b055; --bad: #ff8a7a;
+      --lvl-unlikely: #9aa7bb; --lvl-possible: #e0b055; --lvl-likely: #c39bff;
+      --flag-bg: #4a2420;
+      --mk-finding: #ff7a45; --mk-uncertain-ink: #3b2e00; --mk-normal: #6d9bff;
+      --bar: #3a4556;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 Inter, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .shell { max-width: 1480px; margin: 0 auto; padding: 24px; }
+  .frame { background: var(--frame); border: 1px solid var(--frame-line); border-radius: 40px; padding: 28px 40px 48px; box-shadow: 0 0 0 10px rgba(255, 255, 255, .22); }
+  @media (prefers-color-scheme: dark) { .frame { box-shadow: none; } }
+  h1, h2, h3, p { margin: 0; }
+
+  /* header */
+  .top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: space-between; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 600; letter-spacing: -.02em; color: var(--ink); text-decoration: none; }
+  .brand svg { width: 28px; height: 28px; }
+  .pills { display: flex; gap: 10px; flex-wrap: wrap; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 24px; border-radius: 999px; background: var(--card); color: var(--ink); text-decoration: none; font-weight: 500; font-size: 15px; box-shadow: var(--shadow); }
+  .pill svg { width: 18px; height: 18px; }
+  .pill:hover { background: var(--yellow); color: var(--on-yellow); }
+  .proto-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; background: var(--card); font-size: 14px; box-shadow: var(--shadow); }
+  .proto-chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--mk-uncertain); }
+
+  /* board */
+  .board { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(0, 1.25fr) minmax(300px, 1fr); gap: 24px; align-items: start; margin-top: 28px; }
+  .board > * { min-width: 0; }
+  .intro h1 { font-size: clamp(46px, 5.4vw, 76px); line-height: .98; letter-spacing: -.04em; font-weight: 500; margin: 36px 0 18px; }
+  .lead { font-size: 18px; line-height: 1.35; font-weight: 500; letter-spacing: -.01em; max-width: 30ch; }
+  .sub { color: var(--muted); margin-top: 10px; max-width: 42ch; }
+  .proto-note { color: var(--muted); font-size: 13px; margin: 10px 0 22px; max-width: 46ch; }
+  .proto-note strong { background: var(--yellow); color: var(--on-yellow); border-radius: 999px; padding: 1px 8px; margin-right: 4px; }
+
+  .card { background: var(--card); border-radius: 24px; padding: 18px; box-shadow: var(--shadow); min-width: 0; }
+  .card h2 { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+  .controls .label { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .chip { border: 0; background: var(--card-2); color: var(--ink); border-radius: 999px; min-height: 32px; padding: 4px 12px; cursor: pointer; font: inherit; font-size: 13px; text-align: left; }
+  .chip:hover { background: var(--yellow); color: var(--on-yellow); }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+  textarea { width: 100%; min-height: 110px; border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: var(--card-2); color: var(--ink); font: inherit; font-size: 14px; resize: vertical; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+  .cta { display: inline-flex; align-items: center; justify-content: space-between; gap: 14px; flex: 1 1 230px; min-height: 52px; padding: 0 8px 0 22px; border: 0; border-radius: 999px; background: var(--yellow); color: var(--on-yellow); font: inherit; font-weight: 500; cursor: pointer; }
+  .cta small { font-weight: 400; opacity: .75; margin-left: 4px; }
+  .cta-ico { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #fff; color: #111; }
+  .cta-ico svg { width: 16px; height: 16px; }
+  .ghost { min-height: 52px; padding: 0 22px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: inherit; font-weight: 500; cursor: pointer; flex: 1 1 150px; }
+  .ghost small { font-weight: 400; color: var(--muted); margin-left: 4px; }
+  .ghost:hover { background: var(--card-2); }
+  button:disabled { opacity: .55; cursor: wait; }
+  .toggle { font-size: 14px; display: inline-flex; gap: 8px; align-items: center; cursor: pointer; min-height: 32px; }
+  .toggle input { width: 18px; height: 18px; accent-color: var(--ink); }
+  #status { color: var(--muted); font-size: 14px; }
+  .note { color: var(--muted); font-size: 13px; margin-top: 10px; }
+
+  /* body map */
+  .map { container: map / inline-size; text-align: center; }
+  .map h2 { font-size: 15px; font-weight: 600; }
+  .map .hint { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .figure { --fh: clamp(460px, 72vh, 700px); container: fig / inline-size; position: relative; width: min(100%, calc(var(--fh) * .3947)); aspect-ratio: 300 / 760; margin: 14px auto 0; }
+  .body-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .body-svg[hidden] { display: none; }   /* the hidden attribute does not hide SVG elements by itself */
+  .mk { position: absolute; width: 28px; height: 28px; transform: translate(-50%, -50%); padding: 0; border: 0; background: none; cursor: pointer; z-index: 1; font: inherit; }
+  .mk[aria-pressed="true"], .mk:hover, .mk:focus-visible { z-index: 3; }
+  .mk-dot { position: absolute; inset: 3px; display: grid; place-items: center; border-radius: 50%; background: #fff; box-shadow: 0 2px 8px rgba(16, 18, 24, .25); font-size: 11px; font-weight: 800; line-height: 1; color: #fff; transition: transform .15s; }
+  .mk-dot::before { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--c); z-index: -1; }
+  .mk-dot { z-index: 0; isolation: isolate; }
+  .mk.finding { --c: var(--mk-finding); }
+  .mk.uncertain { --c: var(--mk-uncertain); }
+  .mk.uncertain .mk-dot { color: var(--mk-uncertain-ink); }
+  .mk.normal { --c: var(--mk-normal); }
+  .mk:hover .mk-dot { transform: scale(1.12); }
+  .mk[aria-pressed="true"] .mk-dot { box-shadow: 0 0 0 3px var(--ink), 0 2px 8px rgba(16, 18, 24, .3); }
+  .mk-label { position: absolute; top: 50%; transform: translateY(calc(-50% + var(--dy, 0px))); display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; background: var(--card); color: var(--ink); border-radius: 999px; padding: 6px 14px 6px 11px; font-size: 13px; font-weight: 500; box-shadow: 0 4px 14px rgba(16, 18, 24, .12); }
+  .mk-label .d { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+  .mk-label b { color: var(--muted); font-weight: 500; }
+  .mk[data-side="r"] .mk-label { left: calc(100% + 2px); }
+  .mk[data-side="l"] .mk-label { right: calc(100% + 2px); }
+  .mk[aria-pressed="true"] .mk-label { background: var(--ink); color: var(--on-ink); }
+  .mk[aria-pressed="true"] .mk-label b { color: inherit; opacity: .75; }
+  @container map (max-width: 399px) { .mk-label { display: none; } }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: center; font-size: 13px; color: var(--muted); margin-top: 14px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .g { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 10px; font-weight: 800; color: #fff; }
+  .g.finding { background: var(--mk-finding); } .g.uncertain { background: var(--mk-uncertain); color: var(--mk-uncertain-ink); } .g.normal { background: var(--mk-normal); }
+  .caption { margin: 14px auto 0; max-width: 460px; background: var(--card); border-radius: 20px; padding: 14px 16px; text-align: left; font-size: 14px; box-shadow: var(--shadow); }
+  .caption strong { display: block; margin-bottom: 4px; }
+  .caption .cap-s { display: block; padding: 3px 0 3px 10px; border-left: 3px solid var(--mk-normal); margin: 4px 0; }
+  .caption .cap-s.finding { border-left-color: var(--mk-finding); } .caption .cap-s.uncertain { border-left-color: var(--mk-uncertain); }
+  .caption .muted { color: var(--muted); }
+  .orient { color: var(--muted); font-size: 12px; margin-top: 8px; }
+
+  /* 3D figure: replaces the flat SVG; pins are HTML buttons projected from 3D points */
+  .figure.is3d { width: 100%; max-width: 600px; height: var(--fh); aspect-ratio: auto; border-radius: 28px; overflow: hidden;
+    background: radial-gradient(120% 90% at 50% 38%, color-mix(in srgb, var(--card) 70%, transparent), transparent 70%); }
+  .loading3d { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; }
+  .body3d-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  .body3d-canvas:active { cursor: grabbing; }
+  .pins { position: absolute; inset: 0; pointer-events: none; }
+  .figure.is3d .mk { position: absolute; left: 0; top: 0; pointer-events: auto; transform: translate(-50%, -50%); transition: opacity .25s; }
+  .figure.is3d .mk { width: 22px; height: 22px; }
+  .figure.is3d .mk-dot { inset: 2px; font-size: 10px; }
+  .figure.is3d .mk[data-far="1"] { opacity: .28; }
+  .figure.is3d .mk:hover, .figure.is3d .mk:focus-visible, .figure.is3d .mk[aria-pressed="true"] { z-index: 5; opacity: 1; }
+  .figure.is3d .mk-label { display: none; }
+  .figure.is3d .mk[data-side="b"] .mk-label { left: 50%; right: auto; top: calc(100% + 6px); transform: translateX(calc(-50% + var(--lx, 0px))); }
+  .figure.is3d .mk:hover .mk-label, .figure.is3d .mk:focus-visible .mk-label, .figure.is3d .mk[aria-pressed="true"] .mk-label { display: inline-flex; }
+  .mk-count { position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--ink); color: var(--on-ink); font-size: 10px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--card); }
+  .seg { display: inline-flex; gap: 4px; padding: 3px; margin: 8px auto 0; border-radius: 999px; background: var(--card); box-shadow: var(--shadow); }
+  .seg[hidden] { display: none; }   /* display:inline-flex above would otherwise win over the hidden attribute */
+  .seg-b { border: 0; background: transparent; color: var(--ink); border-radius: 999px; min-height: 32px; padding: 4px 14px; font: inherit; font-size: 13px; cursor: pointer; }
+  .seg-b[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+  .credit { color: var(--muted); font-size: 11px; margin: 4px 0 0; }
+  @media (prefers-reduced-motion: reduce) { .body3d-canvas { cursor: default; } }
+
+  /* right-hand stats */
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .stats .wide { grid-column: 1 / -1; }
+  .stat .head { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
+  .stat .ico { width: 20px; height: 20px; color: var(--mk-finding); }
+  .stat .val { font-size: 34px; letter-spacing: -.03em; font-weight: 500; line-height: 1.1; margin: 14px 0 12px; }
+  .stat .val small { font-size: 15px; color: var(--muted); letter-spacing: 0; margin-left: 2px; }
+  .stat .foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .tag { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; font-size: 12px; }
+  .tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .tag.good { color: var(--good); } .tag.warn { color: var(--warn); } .tag.bad { color: var(--bad); }
+  .gauge-wrap { display: flex; flex-direction: column; align-items: center; }
+  .gauge { width: 100%; max-width: 280px; height: auto; margin-top: 4px; }
+  .gauge-val { font-size: 34px; font-weight: 500; letter-spacing: -.03em; line-height: 1; margin-top: -58px; }
+  .gauge-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .mini { display: flex; justify-content: space-between; gap: 12px; width: 100%; border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; font-size: 13px; color: var(--muted); }
+  .mini b { color: var(--ink); font-weight: 600; }
+  .chart .big { font-size: 40px; font-weight: 400; letter-spacing: -.03em; line-height: 1; margin-top: 10px; }
+  .chart .big small { font-size: 14px; color: var(--muted); letter-spacing: 0; }
+  .chart-svg { width: 100%; height: auto; display: block; margin-top: 10px; }
+  .chart .cap { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* findings list */
+  .findings { margin-top: 24px; }
+  .findings h2, .compare-h { font-size: 22px; font-weight: 500; letter-spacing: -.02em; }
+  .findings .sub { max-width: 80ch; }
+  .find-list { list-style: none; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .find { background: var(--card-2); border-radius: 18px; padding: 12px 14px; border: 2px solid transparent; }
+  .find.on { border-color: var(--ink); background: var(--card); }
+  .find p { margin-top: 8px; overflow-wrap: anywhere; }
+  .find-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
+  .badge b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 10px; color: #fff; }
+  .badge.finding b { background: var(--mk-finding); } .badge.uncertain b { background: var(--mk-uncertain); color: var(--mk-uncertain-ink); } .badge.normal b { background: var(--mk-normal); }
+  .rchip { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; min-height: 28px; padding: 2px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+  .rchip[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+  .rchip:hover { border-color: var(--ink); }
+  .find .muted { color: var(--muted); font-size: 12px; }
+
+  /* comparison */
+  .verdict { font-size: 14px; margin: 28px 0 0; padding: 12px 18px; border-radius: 18px; background: var(--card); box-shadow: var(--shadow); }
+  .compare-h { margin: 28px 0 14px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .col { background: var(--card); border-radius: 24px; padding: 18px; min-width: 0; box-shadow: var(--shadow); }
+  .col h3 { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+  .col .tagline { color: var(--muted); font-size: 13px; margin: 2px 0 12px; }
+  .sent { margin: 0 0 8px; padding: 2px 0 2px 10px; border-left: 3px solid transparent; overflow-wrap: anywhere; }
+  .sent.unsupported { border-left-color: var(--bad); background: color-mix(in srgb, var(--flag-bg) 55%, transparent); }
+  mark.flag { background: var(--flag-bg); color: inherit; border-bottom: 2px solid var(--bad); border-radius: 2px; padding: 0 1px; }
+  .h-unlikely, .h-possible, .h-likely { border-bottom: 2px dotted; }
+  .h-unlikely { color: var(--lvl-unlikely); } .h-possible { color: var(--lvl-possible); } .h-likely { color: var(--lvl-likely); }
+  .bars { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .bar { display: grid; grid-template-columns: 138px 1fr 40px; gap: 8px; align-items: center; font-size: 13px; margin: 5px 0; }
+  .bar .track { background: var(--card-2); border-radius: 5px; height: 9px; overflow: hidden; }
+  .bar .fill { height: 100%; border-radius: 5px; }
+  .bar.total { font-weight: 600; font-size: 14px; }
+  .issues { margin: 10px 0 0; padding-left: 18px; font-size: 13px; }
+  .issues li { margin: 2px 0; }
+  .issues.ok { list-style: none; padding-left: 0; color: var(--good); }
+  .gloss { color: var(--muted); font-style: italic; font-size: .94em; }
+  .key { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); margin-top: 14px; }
+  .key span { overflow-wrap: anywhere; }
+  .empty { color: var(--muted); padding: 30px 0; text-align: center; grid-column: 1 / -1; background: var(--card); border-radius: 24px; }
+  table.summary { border-collapse: collapse; width: 100%; font-size: 14px; margin-top: 8px; }
+  table.summary th, table.summary td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; }
+  .foot-card { margin-top: 28px; overflow-x: auto; }
+  .foot-card h2 { font-size: 22px; font-weight: 500; letter-spacing: -.02em; margin-bottom: 4px; }
+
+  /* responsive */
+  @media (max-width: 1279px) {
+    .board { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .stats { grid-column: 1 / -1; grid-template-columns: repeat(4, 1fr); }
+    .stats .wide { grid-column: span 2; }
+  }
+  @media (max-width: 1000px) { .grid { grid-template-columns: 1fr; } .stats { grid-template-columns: 1fr 1fr; } .stats .wide { grid-column: 1 / -1; } }
+  @media (max-width: 760px) {
+    .shell { padding: 10px; }
+    .frame { padding: 18px 16px 32px; border-radius: 28px; box-shadow: none; }
+    .board { grid-template-columns: 1fr; }
+    .pills { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; order: 3; }
+    .pill { flex: none; padding: 0 18px; }
+    .intro h1 { margin-top: 22px; }
+    .stats { grid-template-columns: 1fr 1fr; }
+    .bar { grid-template-columns: 110px 1fr 36px; }
+  }
+  @media (max-width: 420px) { .stats { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="frame">
+  <header class="top" id="top">
+    <a class="brand" href="#top">
+      <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="22" height="22" rx="8"/><path d="M14 8v12M8 14h12"/></svg>
+      Report Check
+    </a>
+    <nav class="pills" aria-label="Page sections">
+      <a class="pill" href="#top"><svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true" focusable="false"><rect x="2" y="2" width="6" height="6" rx="1.5"/><rect x="10" y="2" width="6" height="6" rx="1.5"/><rect x="2" y="10" width="6" height="6" rx="1.5"/><rect x="10" y="10" width="6" height="6" rx="1.5"/></svg>Overview</a>
+      <a class="pill" href="#findings">Findings</a>
+      <a class="pill" href="#compare">Comparison</a>
+      <a class="pill" href="#heldout">Held-out</a>
+    </nav>
+    <span class="proto-chip" title="Pretrained model, not fine-tuned"><i></i>Prototype</span>
+  </header>
+
+  <main>
+  <div class="board">
+    <section class="intro" aria-label="Report input">
+      <h1>Report<br>check</h1>
+      <p class="lead">Does the patient version still say what the report said?</p>
+      <p class="sub">Paste a radiology report or pick an example. The checker marks changed hedges, wrong numbers or sides, added claims, and unsupported sentences.</p>
+      <p class="proto-note" role="note"><strong>Prototype.</strong> Pretrained Qwen2.5-1.5B writes the drafts. It is <strong>not fine-tuned</strong>. The checker is our own: sentence-level meaning check, numbers/sides, hedge level, readability.</p>
+
+      <div class="card controls">
+        <p class="label" id="exlabel">Examples</p>
+        <div class="chips" id="chips" role="group" aria-labelledby="exlabel"></div>
+        <label class="label" for="report" style="display:block">Radiology report</label>
+        <textarea id="report" placeholder="FINDINGS: ... IMPRESSION: ..."></textarea>
+        <div class="row">
+          <button class="cta" id="quick" type="button"><span>Quick check <small>about 30 s</small></span><span class="cta-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></span></button>
+          <button class="ghost" id="best" type="button">Best of 8 <small>about 2-3 min</small></button>
+        </div>
+        <div class="row">
+          <label class="toggle"><input type="checkbox" id="glossToggle" checked> Explain medical terms</label>
+          <span id="status" role="status" aria-live="polite"></span>
+        </div>
+        <p class="note">Examples are pre-computed so nothing waits on the model. They were picked to show different cases, not to be representative; the table at the bottom has the real comparison.</p>
+      </div>
+    </section>
+
+    <section class="map" aria-labelledby="maph">
+      <h2 id="maph">Where the report says things</h2>
+      <div class="seg" role="group" aria-label="Which text to place on the body">
+        <button type="button" class="seg-b" id="modePatient" aria-pressed="true">Patient version</button>
+        <button type="button" class="seg-b" id="modeOriginal" aria-pressed="false">Original report</button>
+      </div>
+      <p class="hint" id="maphint"></p>
+      <div class="seg" id="viewSeg" role="group" aria-label="How much of the body to show" hidden>
+        <button type="button" class="seg-b" id="viewChest" aria-pressed="true">Chest</button>
+        <button type="button" class="seg-b" id="viewBody" aria-pressed="false">Whole body</button>
+      </div>
+      <div class="figure" id="figure" role="group" aria-label="Body figure with markers for each place the report mentions">
+        <div class="loading3d" id="loading3d">Loading 3D body...</div>
+        <svg class="body-svg" id="fallbackSvg" hidden viewBox="0 0 300 760" aria-hidden="true" focusable="false">
+          <defs>
+            <linearGradient id="skin" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="760"><stop offset="0" stop-color="#f4c4ad"/><stop offset=".55" stop-color="#e29679"/><stop offset="1" stop-color="#c8694b"/></linearGradient>
+            <radialGradient id="shine" gradientUnits="userSpaceOnUse" cx="135" cy="190" r="300"><stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+            <radialGradient id="floor"><stop offset="0" stop-color="#000" stop-opacity=".2"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+            <g id="shape">
+              <ellipse cx="150" cy="50" rx="29" ry="37" stroke="none"/>
+              <rect x="135" y="80" width="30" height="38" rx="12" stroke="none"/>
+              <path stroke="none" d="M90 126C100 116 124 110 150 110C176 110 200 116 210 126C206 150 200 175 200 215C200 250 188 268 188 292C188 322 204 336 202 352C190 366 168 374 150 374C132 374 110 366 98 352C96 336 112 322 112 292C112 268 100 250 100 215C100 175 94 150 90 126Z"/>
+              <g fill="none" stroke-linecap="round">
+                <path d="M86 138L66 232" stroke-width="28"/><path d="M66 232L56 330" stroke-width="22"/>
+                <path d="M214 138L234 232" stroke-width="28"/><path d="M234 232L244 330" stroke-width="22"/>
+                <path d="M122 360L128 520" stroke-width="52"/><path d="M128 520L124 700" stroke-width="38"/><path d="M124 700L122 724" stroke-width="26"/>
+                <path d="M178 360L172 520" stroke-width="52"/><path d="M172 520L176 700" stroke-width="38"/><path d="M176 700L178 724" stroke-width="26"/>
+              </g>
+              <ellipse cx="54" cy="350" rx="11" ry="20" stroke="none"/><ellipse cx="246" cy="350" rx="11" ry="20" stroke="none"/>
+              <ellipse cx="112" cy="738" rx="23" ry="10" stroke="none"/><ellipse cx="188" cy="738" rx="23" ry="10" stroke="none"/>
+            </g>
+          </defs>
+          <ellipse cx="150" cy="748" rx="110" ry="9" fill="url(#floor)"/>
+          <use href="#shape" fill="url(#skin)" stroke="url(#skin)"/>
+          <use href="#shape" fill="url(#shine)" stroke="url(#shine)"/>
+          <g fill="none" stroke="#fff" stroke-linecap="round" opacity=".55">
+            <path d="M150 112V362" stroke-width="5" stroke-dasharray="1 8" opacity=".6"/>
+            <path d="M150 100V152M150 152L136 168M150 152L164 168" stroke-width="4"/>
+            <path d="M150 146C130 140 112 146 102 160M150 164C130 158 110 164 100 180M150 182C128 176 108 184 99 202M150 200C128 194 108 204 100 224M150 218C130 214 112 224 104 244" stroke-width="2" opacity=".5"/>
+            <path d="M150 146C170 140 188 146 198 160M150 164C170 158 190 164 200 180M150 182C172 176 192 184 201 202M150 200C172 194 192 204 200 224M150 218C170 214 188 224 196 244" stroke-width="2" opacity=".5"/>
+          </g>
+          <path d="M147 138C136 134 118 138 109 152C101 172 99 207 105 235C109 250 129 256 146 250C150 220 149 170 147 138Z" fill="#fff" fill-opacity=".3" stroke="#fff" stroke-opacity=".6" stroke-width="1.5"/>
+          <path d="M153 138C164 134 182 138 191 152C199 172 201 207 195 235C191 250 171 256 154 250C150 220 151 170 153 138Z" fill="#fff" fill-opacity=".3" stroke="#fff" stroke-opacity=".6" stroke-width="1.5"/>
+          <path d="M150 190C164 183 182 196 180 220C178 240 164 252 154 248C144 244 141 214 150 190Z" fill="#8a2a2a" fill-opacity=".5" stroke="#fff" stroke-opacity=".5" stroke-width="1.5"/>
+          <path d="M103 266C120 248 140 250 150 262C160 250 180 248 197 266" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="150" cy="322" r="2.5" fill="#fff" fill-opacity=".55"/>
+        </svg>
+      </div>
+      <div class="legend" aria-label="Marker key">
+        <span><i class="g finding" aria-hidden="true">!</i>Finding</span>
+        <span><i class="g uncertain" aria-hidden="true">?</i>Hedged (possible, likely)</span>
+        <span><i class="g normal" aria-hidden="true">&#10003;</i>Normal or none reported</span>
+      </div>
+      <p class="orient">The patient's right side is on the left of the figure.</p>
+      <p class="credit" id="credit"></p>
+      <div class="caption" id="caption" aria-live="polite"></div>
+    </section>
+
+    <section class="stats" id="stats" aria-label="Scores for the verifier-selected draft"></section>
+  </div>
+
+  <section class="findings" id="findings" aria-labelledby="fh">
+    <h2 id="fh">Findings in the patient version</h2>
+    <p class="sub" id="findsub">Places are guessed from words like "right lung" or "heart", so they show what the text talks about, not exact positions. Check them against the report.</p>
+    <ol class="find-list" id="findlist"></ol>
+  </section>
+
+  <div class="verdict" id="verdict" hidden></div>
+  <h2 class="compare-h" id="compare">Original, plain draft and checked draft</h2>
+  <div class="grid" id="grid">
+    <div class="empty">Pick an example above.</div>
+  </div>
+
+  <div class="key" aria-label="Legend">
+    <span><mark class="flag">word</mark> checker flag (hover for why)</span>
+    <span><span class="h-possible">possible</span> / <span class="h-likely">likely</span> / <span class="h-unlikely">unlikely</span> hedge level</span>
+    <span>red bar on the left: sentence not supported by the report</span>
+  </div>
+
+  <section class="card foot-card" id="heldout" hidden><h2>Held-out comparison (40 unseen reports)</h2><div id="summary"></div></section>
+  </main>
+</div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const KIND_TIP = {
+  "wrong number": "This number is not in the report.",
+  "wrong side": "Left/right does not match the report.",
+  "added severity": "A severity or size word the report does not use.",
+  "hedge changed": "Certainty level differs from the report.",
+  "unsupported": "Not supported by any sentence in the report.",
+};
+const BARS = [
+  ["entail", "Meaning kept", "Sentences supported by the report (NLI check)"],
+  ["numbers", "Numbers & sides", "Numbers, left/right and severity words match the report"],
+  ["certainty", "Certainty kept", "Hedges (possible, likely) kept at the same strength"],
+  ["simplicity", "Plainer wording", "Readability gain; zero for near-copies"],
+  ["total", "Overall", "Weighted total used to pick the best draft"],
+];
+
+function ranges(text, specs) {
+  const found = [];
+  specs.forEach((spec, priority) => spec.terms.forEach((term) => {
+    const re = new RegExp("(?<![A-Za-z])" + term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?![A-Za-z])", "gi");
+    for (const m of text.matchAll(re)) found.push({ s: m.index, e: m.index + m[0].length, cls: spec.cls, tip: spec.tip, priority });
+  }));
+  found.sort((a, b) => a.s - b.s || a.priority - b.priority);
+  const kept = []; let end = 0;
+  for (const r of found) if (r.s >= end) { kept.push(r); end = r.e; }
+  return kept;
+}
+function paint(text, specs) {
+  let html = "", pos = 0;
+  for (const r of ranges(text, specs)) {
+    html += esc(text.slice(pos, r.s));
+    const inner = esc(text.slice(r.s, r.e));
+    html += r.cls === "flag" ? `<mark class="flag" title="${esc(r.tip)}">${inner}</mark>` : `<span class="${r.cls}" title="${esc(r.tip)}">${inner}</span>`;
+    pos = r.e;
+  }
+  return html + esc(text.slice(pos));
+}
+const hedgeSpec = (terms, level) => ({ terms, cls: "h-" + level, tip: "hedge: " + level });
+const scoreColor = (v) => (v >= 0.75 ? "var(--good)" : v >= 0.5 ? "var(--warn)" : "var(--bad)");
+
+/* ---------- body map: where each sentence of the report points ---------- */
+// Figure coordinates (viewBox 300 x 760). side = which way the label points.
+// "r" in an id is the patient's right, which is the viewer's left.
+const SPOTS = {
+  head: [150, 50, "r", "Head"],
+  neck: [150, 100, "l", "Neck & trachea"],
+  mediastinum: [150, 166, "l", "Mediastinum"],
+  heart: [158, 214, "r", "Heart"],
+  "lung-r-upper": [124, 150, "l", "Right lung, upper"], "lung-r-mid": [122, 188, "l", "Right lung"], "lung-r-lower": [122, 238, "l", "Right lung, lower"],
+  "lung-l-upper": [176, 150, "r", "Left lung, upper"], "lung-l-mid": [178, 188, "r", "Left lung"], "lung-l-lower": [178, 238, "r", "Left lung, lower"],
+  ribs: [100, 212, "l", "Ribs & bones"],
+  spine: [150, 258, "l", "Spine"],
+  "pleura-r": [104, 266, "l", "Right pleura"], "pleura-l": [196, 266, "r", "Left pleura"],
+  diaphragm: [150, 292, "r", "Diaphragm"],
+  abdomen: [150, 326, "l", "Upper abdomen"],
+  pelvis: [150, 360, "r", "Pelvis"],
+};
+const RX = {
+  head: /\b(brain|skull|cranial|intracranial|cerebral|sinus(es)?|head)\b/,
+  neck: /\b(neck|thyroid|trachea|tracheal|windpipe|cervical|larynx|airway)\b/,
+  mediastinum: /\b(mediastin\w*|hil(ar|um|a)|aort\w*|cardiomediastinal|great vessels|lymph ?nodes?|adenopathy)\b/,
+  heart: /\b(heart|cardiac|cardiomegaly|cardiomediastinal|cardiopulmonary|cardiothoracic|pericardi\w*)\b/,
+  lung: /\b(lungs?|pulmonary|lobes?|lobar|apex|apical|apices|bases?|basilar|bibasilar|airspace|consolidat\w+|infiltrates?|opacit\w+|nodules?|atelectasis|pneumonia|emphysema|hyperinflat\w+|interstitial|bronch\w+|cardiopulmonary|parenchym\w+|perihilar|vascular markings|edema|scarring|granuloma\w*)\b/,
+  pleura: /\b(pleura\w*|effusions?|pneumothora\w+|costophrenic|hemithorax|fluid around|collapsed lung)\b/,
+  diaphragm: /\b(diaphragm\w*|hemidiaphragm\w*)\b/,
+  ribs: /\b(ribs?|osseous|bony|bones?|fractures?|clavicles?|sternum|sternal|scapula\w*|shoulders?|chest wall|thoracic cage|osteophyt\w+|degenerative|soft tissues?|breast\w*|subcutaneous|collarbones?|breastbone)\b/,
+  spine: /\b(spine|spinal|vertebra\w*|scoliosis|kyphosis|kyphotic|spondyl\w*|disc)\b/,
+  abdomen: /\b(abdom\w+|liver|hepatic|spleen|splenic|kidneys?|renal|bowel|gallbladder|stomach|gastric|free air|pancrea\w+|colon|intestin\w+|hernia|hiatal|belly|tummy)\b/,
+  pelvis: /\b(pelvi\w+|bladder|uter\w+|prostat\w+|ovar\w+|hips?|sacr\w+)\b/,
+};
+function regionsOf(text) {
+  const t = text.toLowerCase(), out = new Set();
+  const r = /\bright\b/.test(t), l = /\bleft\b/.test(t);
+  const sides = r && !l ? ["r"] : l && !r ? ["l"] : ["r", "l"];
+  for (const k of ["head", "neck", "mediastinum", "heart", "diaphragm", "ribs", "spine", "abdomen", "pelvis"]) if (RX[k].test(t)) out.add(k);
+  if (RX.pleura.test(t)) sides.forEach((s) => out.add("pleura-" + s));
+  if (RX.lung.test(t)) {
+    const zones = [];
+    if (/\b(upper|apex|apical|apices)\b/.test(t)) zones.push("upper");
+    if (/\b(lower|bases?|basilar|bibasilar|basal)\b/.test(t)) zones.push("lower");
+    if (!zones.length || /\b(mid|middle|lingula|perihilar|hilar)\b/.test(t)) zones.push("mid");
+    sides.forEach((s) => zones.forEach((z) => out.add(`lung-${s}-${z}`)));
+  }
+  return [...out];
+}
+const NEG = /\b(no|without|negative for|free of|absence of|absent|not)\b[^.;]*/g;
+const ABN = /\b(opacit\w+|consolidat\w+|infiltrat\w+|effusions?|pneumothora\w+|nodul\w+|mass(es)?|lesions?|atelecta\w+|scar\w*|fibro\w+|edema|enlarg\w+|cardiomegaly|thicken\w+|fractur\w+|degenerat\w+|scolio\w+|kyphos\w+|osteophyt\w+|calcif\w+|granulom\w+|emphysema\w*|hyperinflat\w+|pneumonia|congest\w+|prominen\w+|elevat\w+|tortuo\w+|widen\w+|deform\w+|hernia\w*|borderline|abnormal\w*|disease|cyst\w*|pacemaker|catheter|tube|sternotomy|clips?|hardware|prosthe\w+|stent|surgical|postsurgical|post-?operative|blunting|crowding|streak\w*|haz\w+|patchy|atheroscl\w+|ectatic|ectasia|dilat\w+|stranding)\b/;
+// Abnormal words that are not negated count as a finding; a hedge makes it "uncertain".
+function statusOf(s) {
+  if (!ABN.test(s.text.toLowerCase().replace(NEG, " "))) return "normal";
+  return s.hedge_terms.length ? "uncertain" : "finding";
+}
+const RANK = { normal: 0, uncertain: 1, finding: 2 };
+const GLYPH = { finding: "!", uncertain: "?", normal: "&#10003;" };
+const STATUS_TEXT = { finding: "Finding", uncertain: "Hedged finding", normal: "Normal or none reported" };
+
+let findings = [], regions = new Map(), active = null;
+let mapMode = "patient";   // "patient" = the checked draft's sentences (with term explanations); "original" = the radiologist's text
+const mapSentences = (ex) => (mapMode === "patient" ? ex.selected.explain.sentences : ex.plain.explain.source_sentences);
+function analyse(ex) {
+  findings = mapSentences(ex).map((s, i) => ({ i, s, status: statusOf(s), regions: regionsOf(s.text) }));
+  regions = new Map();
+  findings.forEach((f) => f.regions.forEach((id) => {
+    const r = regions.get(id) || { id, items: [], rank: 0 };
+    r.items.push(f.i); r.rank = Math.max(r.rank, RANK[f.status]); regions.set(id, r);
+  }));
+  active = null;
+}
+const worst = (r) => ["normal", "uncertain", "finding"][r.rank];
+const findingText = (f) => {
+  const specs = f.s.hedge_terms.length ? [hedgeSpec(f.s.hedge_terms, f.s.level)] : [];
+  return mapMode === "patient" ? body(f.s, specs) : paint(f.s.text, specs);
+};
+function syncMapMode() {
+  const patient = mapMode === "patient";
+  $("modePatient").setAttribute("aria-pressed", String(patient)); $("modeOriginal").setAttribute("aria-pressed", String(!patient));
+  $("maphint").innerHTML = (patient ? "From the checked patient version" : "From the original radiology report") + " &middot; drag to rotate, scroll to zoom, select a marker";
+  $("fh").textContent = patient ? "Findings in the patient version" : "Findings in the original report";
+}
+
+let viewer = null, viewerPending = true;   // markers wait for the 3D viewer so the flat fallback never draws on top
+function renderMarkers() {
+  if (viewerPending) return;
+  if (!viewer) return renderMarkersSvg();
+  viewer.setMarkers([...regions.values()].map((r) => {
+    const st = worst(r), n = r.items.length, label = SPOTS[r.id][3];
+    return { id: r.id, status: st, count: n, label: esc(label), aria: `${label}: ${n} ${n > 1 ? "statements" : "statement"}, ${STATUS_TEXT[st].toLowerCase()}` };
+  }));
+}
+function renderMarkersSvg() {
+  const fig = $("figure");
+  fig.querySelectorAll(".mk").forEach((m) => m.remove());
+  const html = [...regions.values()].map((r) => {
+    const [x, y, side, label] = SPOTS[r.id], st = worst(r), n = r.items.length;
+    return `<button type="button" class="mk ${st}" style="left:${x / 3}%;top:${y / 7.6}%" data-r="${r.id}" data-y="${y}" data-side="${side}" aria-pressed="false" ` +
+      `aria-label="${esc(label)}: ${n} ${n > 1 ? "statements" : "statement"}, ${STATUS_TEXT[st].toLowerCase()}">` +
+      `<span class="mk-dot" aria-hidden="true">${GLYPH[st]}</span><span class="mk-label" aria-hidden="true"><i class="d"></i>${esc(label)}${n > 1 ? ` <b>&times;${n}</b>` : ""}</span></button>`;
+  }).sort((a, b) => +a.match(/data-y="(\d+)"/)[1] - +b.match(/data-y="(\d+)"/)[1]).join("");
+  fig.insertAdjacentHTML("beforeend", html);
+  fig.querySelectorAll(".mk").forEach((m) => (m.onclick = () => setActive(m.dataset.r)));
+  placeLabels();
+}
+async function startViewer() {
+  const fig = $("figure"), fail = (why) => {
+    viewerPending = false; $("loading3d")?.remove(); $("fallbackSvg").removeAttribute("hidden"); viewer = null;
+    $("credit").textContent = "3D view unavailable (" + why + "); showing a flat figure.";
+    if (current) renderMarkers();
+  };
+  try {
+    const { createBodyViewer } = await import("/body3d.js");
+    const v = await createBodyViewer(fig, { onSelect: (id) => setActive(id), onFail: fail });
+    viewerPending = false;
+    if (!v) return;
+    viewer = v; fig.classList.add("is3d"); $("loading3d").remove();
+    $("credit").textContent = v.credit;
+    if (v.hasFullBody) $("viewSeg").hidden = false;
+    if (current) { renderMarkers(); if (active) viewer.focus(active); }
+  } catch (e) { viewerPending = false; fail(String(e.message || e)); }
+}
+// Labels sit beside their dot; push a label down when it would overlap the one above it on the same side.
+function placeLabels() {
+  const fig = $("figure"), h = fig.clientHeight;
+  ["l", "r"].forEach((side) => {
+    let prev = -1e9;
+    [...fig.querySelectorAll(`.mk[data-side="${side}"]`)].sort((a, b) => a.dataset.y - b.dataset.y).forEach((m) => {
+      const y = (m.dataset.y / 760) * h, ny = Math.max(y, prev + 32);
+      m.style.setProperty("--dy", ny - y + "px"); prev = ny;
+    });
+  });
+}
+function renderCaption() {
+  const el = $("caption");
+  if (!findings.length) { el.innerHTML = '<span class="muted">Pick an example or run a check to place the report\'s statements on the body.</span>'; return; }
+  if (!active) {
+    const placed = findings.filter((f) => f.regions.length).length;
+    el.innerHTML = `<span class="muted">${placed} of ${findings.length} sentences were placed on the body. Select a marker to read what the report says there.</span>`;
+    return;
+  }
+  const r = regions.get(active);
+  el.innerHTML = `<strong>${esc(SPOTS[active][3])}</strong>` + r.items.map((i) => `<span class="cap-s ${findings[i].status}">${findingText(findings[i])}</span>`).join("");
+}
+function setActive(id) {
+  active = active === id ? null : id;
+  viewer?.focus(active);
+  $("figure").querySelectorAll(".mk").forEach((m) => m.setAttribute("aria-pressed", String(m.dataset.r === active)));
+  const on = active ? new Set(regions.get(active).items) : new Set();
+  document.querySelectorAll(".find").forEach((li) => li.classList.toggle("on", on.has(+li.dataset.i)));
+  document.querySelectorAll(".rchip").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.r === active)));
+  renderCaption();
+}
+function renderFindings() {
+  $("findlist").innerHTML = findings.map((f) => {
+    const chips = f.regions.length
+      ? f.regions.map((id) => `<button type="button" class="rchip" data-r="${id}" aria-pressed="false" title="Show on the body">${esc(SPOTS[id][3])}</button>`).join("")
+      : '<span class="muted">Not placed on the body</span>';
+    return `<li class="find" data-i="${f.i}"><div class="find-head"><span class="badge ${f.status}"><b aria-hidden="true">${GLYPH[f.status]}</b>${STATUS_TEXT[f.status]}</span>${chips}</div><p>${findingText(f)}</p></li>`;
+  }).join("") || '<li class="muted">No report loaded.</li>';
+  document.querySelectorAll(".rchip").forEach((c) => (c.onclick = () => { setActive(c.dataset.r); }));
+}
+
+/* ---------- score cards ---------- */
+const ICON = '<svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 2.5C7 6.5 4.5 9 4.5 12a5.5 5.5 0 0 0 11 0c0-3-2.5-5.5-5.5-9.5Z"/></svg>';
+const tagFor = (v) => (v >= 0.75 ? ["good", "Good"] : v >= 0.5 ? ["warn", "Check"] : ["bad", "Low"]);
+function statCard(key, label, ex) {
+  const v = ex.selected.explain.score[key], p = ex.plain.explain.score[key], [cls, word] = tagFor(v);
+  return `<article class="card stat"><div class="head">${ICON}<h3 style="margin:0;font:inherit">${label}</h3></div>` +
+    `<div class="val">${v.toFixed(2)}<small>/ 1</small></div><div class="foot"><span class="tag ${cls}">${word}</span><span>plain ${p.toFixed(2)}</span></div></article>`;
+}
+function gaugeSvg(v) {
+  const n = 28, on = Math.round(Math.max(0, Math.min(1, v)) * n);
+  let t = "";
+  for (let i = 0; i < n; i++) {
+    const a = ((200 - (i * 220) / (n - 1)) * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
+    t += `<line x1="${(110 + 70 * c).toFixed(1)}" y1="${(105 - 70 * s).toFixed(1)}" x2="${(110 + 92 * c).toFixed(1)}" y2="${(105 - 92 * s).toFixed(1)}" stroke="${i < on ? scoreColor(v) : "var(--bar)"}" stroke-width="5" stroke-linecap="round"/>`;
+  }
+  return `<svg class="gauge" viewBox="0 0 220 130" aria-hidden="true" focusable="false">${t}</svg>`;
+}
+function chartSvg(sents) {
+  const n = sents.length, W = 300, step = (W - 16) / Math.max(n, 1), bw = Math.min(26, step * 0.62);
+  const bars = sents.map((s, i) => {
+    const v = Math.max(0, Math.min(1, s.support)), h = 6 + v * 74, x = 8 + i * step + (step - bw) / 2;
+    const bad = s.flags.some((f) => f.kind === "unsupported");
+    const fill = bad ? "var(--bad)" : v < 0.75 ? "var(--warn)" : "var(--bar)";
+    return `<rect x="${x.toFixed(1)}" y="${(88 - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="${Math.min(6, bw / 2)}" fill="${fill}"/>` +
+      (n <= 12 ? `<text x="${(x + bw / 2).toFixed(1)}" y="104" text-anchor="middle" font-size="11" fill="var(--muted)">${i + 1}</text>` : "");
+  }).join("");
+  const label = "Support from the report for each sentence of the selected draft: " + sents.map((s, i) => `${i + 1}: ${Math.round(s.support * 100)}%`).join(", ");
+  return `<svg class="chart-svg" viewBox="0 0 300 110" role="img" aria-label="${esc(label)}">${bars}</svg>`;
+}
+function renderStats(ex) {
+  const sc = ex.selected.explain.score, pl = ex.plain.explain.score, sents = ex.selected.explain.sentences;
+  const avg = sents.length ? sents.reduce((a, s) => a + s.support, 0) / sents.length : 0;
+  const [cls, word] = tagFor(sc.total);
+  $("stats").innerHTML = statCard("entail", "Meaning kept", ex) + statCard("numbers", "Numbers & sides", ex) +
+    `<article class="card stat wide"><div class="head">${ICON}<h3 style="margin:0;font:inherit">Overall score</h3></div><div class="gauge-wrap">${gaugeSvg(sc.total)}` +
+    `<div class="gauge-val">${sc.total.toFixed(2)}</div><div class="gauge-sub"><span class="tag ${cls}">${word}</span> &middot; plain draft ${pl.total.toFixed(2)}</div>` +
+    `<div class="mini"><span>Certainty kept <b>${sc.certainty.toFixed(2)}</b></span><span>Plainer wording <b>${sc.simplicity.toFixed(2)}</b></span></div></div></article>` +
+    `<article class="card stat chart wide"><div class="head"><h3 style="margin:0;font:inherit;color:var(--ink);font-weight:600">Sentence support</h3></div>` +
+    `<div class="big">${Math.round(avg * 100)}<small> % average</small></div>${chartSvg(sents)}` +
+    `<p class="cap">Taller bar = more support from the report. Red = unsupported, amber = weak. Numbers under the bars are sentence numbers in the checked draft.</p></article>`;
+}
+
+/* ---------- comparison columns (unchanged logic) ---------- */
+function sourceColumn(ex) {
+  const sents = ex.plain.explain.source_sentences.map((s) =>
+    `<p class="sent">${paint(s.text, s.hedge_terms.length ? [hedgeSpec(s.hedge_terms, s.level)] : [])}</p>`).join("");
+  return `<div class="col"><h3>Original report</h3><p class="tagline">What the radiologist wrote</p>${sents}</div>`;
+}
+function issues(summary) {
+  const items = [];
+  if (summary.unsupported_numbers.length) items.push(`Number not in report: ${summary.unsupported_numbers.join(", ")}`);
+  if (summary.missing_numbers.length) items.push(`Number missing: ${summary.missing_numbers.join(", ")}`);
+  if (summary.wrong_sides.length) items.push(`Side not in report: ${summary.wrong_sides.join(", ")}`);
+  if (summary.wrong_qualifiers.length) items.push(`Added severity words (${summary.wrong_qualifiers.join(", ")})`);
+  if (summary.dropped_levels.length) items.push(`Hedge dropped: ${summary.dropped_levels.join(", ")} was in the report`);
+  return items.length ? `<ul class="issues">${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>` : `<ul class="issues ok"><li>No number, side or hedge problems found</li></ul>`;
+}
+function bars(score) {
+  return `<div class="bars">${BARS.map(([k, label, tip]) => {
+    const v = Math.max(0, Math.min(1, score[k]));
+    return `<div class="bar ${k === "total" ? "total" : ""}" title="${esc(tip)}"><span>${label}</span><span class="track"><span class="fill" style="width:${v * 100}%;background:${scoreColor(v)}"></span></span><span>${v.toFixed(2)}</span></div>`;
+  }).join("")}</div>`;
+}
+const GLOSS_TIP = "Plain explanation from our fixed glossary, not written by the AI";
+function body(s, specs) {
+  if (!$("glossToggle").checked || !s.parts) return paint(s.text, specs);
+  return s.parts.map((p) => p.gloss ? `<span class="gloss" title="${GLOSS_TIP}">${esc(p.t)}</span>` : paint(p.t, specs)).join("");
+}
+function outputColumn(title, tag, item) {
+  const ex = item.explain;
+  const sents = ex.sentences.map((s) => {
+    const specs = s.flags.filter((f) => f.terms.length).map((f) => ({ terms: f.terms, cls: "flag", tip: KIND_TIP[f.kind] }));
+    if (s.hedge_terms.length) specs.push(hedgeSpec(s.hedge_terms, s.level));
+    const unsupported = s.flags.some((f) => f.kind === "unsupported");
+    const tip = `support from report: ${(s.support * 100).toFixed(0)}%` + (unsupported ? " (low)" : "");
+    return `<p class="sent ${unsupported ? "unsupported" : ""}" title="${esc(tip)}">${body(s, specs)}</p>`;
+  }).join("");
+  return `<div class="col"><h3>${title}</h3><p class="tagline">${tag}</p>${sents}${bars(ex.score)}${issues(ex.summary)}</div>`;
+}
+let current = null;
+function render(ex) {
+  const keep = current === ex ? active : null;   // glossary toggle re-renders the same report: keep the selection
+  current = ex;
+  analyse(ex); renderMarkers(); renderFindings(); renderStats(ex);
+  if (keep && regions.has(keep)) setActive(keep); else renderCaption();
+  $("grid").innerHTML = sourceColumn(ex) +
+    outputColumn("Plain LLM", "One draft, no checking", ex.plain) +
+    outputColumn("Verifier-selected", ex.n_candidates ? `Best of ${ex.n_candidates} drafts, picked by the checker` : "Picked by the checker", ex.selected);
+  const a = ex.plain.explain.score.total, b = ex.selected.explain.score.total;
+  const same = ex.plain.text === ex.selected.text;
+  $("verdict").hidden = false;
+  $("verdict").textContent = same ? "The checker kept the plain draft here (no better candidate found)." :
+    `Checker's overall score: plain ${a.toFixed(2)} vs selected ${b.toFixed(2)}.` + (ex.acceptable ? "" : " No draft passed all hard checks, so the top-scoring one is shown.");
+}
+
+let examples = [];
+function pick(i) {
+  document.querySelectorAll(".chip").forEach((c, j) => c.setAttribute("aria-pressed", String(i === j)));
+  $("report").value = examples[i].source;
+  render(examples[i]);
+}
+async function live(mode) {
+  const report = $("report").value.trim();
+  if (!report) { $("status").textContent = "Paste a report first."; return; }
+  document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
+  $("quick").disabled = $("best").disabled = true;
+  const t0 = Date.now(); let cold = true;
+  const timer = setInterval(() => { $("status").textContent = `Working... ${Math.round((Date.now() - t0) / 1000)} s` + (cold ? " (first run loads the model)" : ""); }, 500);
+  try {
+    const res = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ report, mode }) });
+    const data = await res.json(); cold = false;
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    render(data); $("status").textContent = `Done in ${Math.round((Date.now() - t0) / 1000)} s.`;
+  } catch (e) { $("status").textContent = "Failed: " + e.message; }
+  finally { clearInterval(timer); $("quick").disabled = $("best").disabled = false; }
+}
+function tableFrom(md) {
+  const rows = md.split("\n").filter((l) => l.startsWith("|") && !/^\|[-| ]+\|$/.test(l)).map((l) => l.split("|").slice(1, -1).map((c) => c.trim()));
+  if (!rows.length) return "";
+  const [head, ...body] = rows;
+  return `<table class="summary"><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>` +
+    `<p class="note">${esc(md.split("\n").filter((l) => l && !l.startsWith("|") && !l.startsWith("#")).join(" "))}</p>`;
+}
+async function init() {
+  $("quick").onclick = () => live("quick"); $("best").onclick = () => live("best");
+  $("glossToggle").onchange = () => current && render(current);
+  const setMode = (m) => { mapMode = m; syncMapMode(); if (current) render(current); };
+  const setView = (mode) => {
+    $("viewChest").setAttribute("aria-pressed", String(mode === "chest")); $("viewBody").setAttribute("aria-pressed", String(mode === "body"));
+    viewer?.setView(mode);
+  };
+  $("viewChest").onclick = () => setView("chest"); $("viewBody").onclick = () => setView("body");
+  $("modePatient").onclick = () => setMode("patient"); $("modeOriginal").onclick = () => setMode("original");
+  syncMapMode();
+  new ResizeObserver(() => { if (!viewer) placeLabels(); }).observe($("figure"));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && active) setActive(active); });
+  startViewer();
+  renderCaption();
+  examples = await (await fetch("/api/examples")).json();
+  $("chips").innerHTML = examples.map((e, i) => `<button class="chip" type="button" aria-pressed="false" data-i="${i}">${esc(e.title)}</button>`).join("");
+  document.querySelectorAll(".chip").forEach((c) => (c.onclick = () => pick(+c.dataset.i)));
+  if (examples.length) pick(0);
+  const md = (await (await fetch("/api/summary")).json()).markdown;
+  if (md) { $("summary").innerHTML = tableFrom(md); $("heldout").hidden = false; }
+}
+init();
+</script>
+</body>
+</html>

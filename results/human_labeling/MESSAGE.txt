@@ -1,0 +1,21 @@
+Hi team,
+
+For the project review I need two quick things from each of you. Please do them alone, without
+discussing with each other until everyone is done. Together they take about 1 hour 15 minutes.
+
+1) LABELING (about 1 hour)
+   - Read GUIDELINES.md first (5 minutes).
+   - Open your own sheet in results/human_labeling/sheets/ (yourname.csv). It has 36 rows: a clinical
+     radiology report and an AI-written patient version. For each row put 1 or 0 in three columns:
+       H = the certainty was changed (for example "probable" became "might be")
+       N = a number, size, time or left/right side is wrong
+       F = the patient version states something the report does not support, or something wrong
+   - Leave nothing blank. Use "notes" if you are unsure.
+
+2) GLOSSARY CHECK (about 15 minutes)
+   - Open results/human_labeling/glossary_review.csv and look only at the rows with your name.
+   - Each row is a medical term and the short plain explanation our demo shows next to it.
+   - Put 1 in ok_1_or_0 if the explanation is medically correct and easy to understand, otherwise 0
+     and write a better version in "suggestion".
+
+Please send both files back to me by <DEADLINE> (same filenames). Thanks!
