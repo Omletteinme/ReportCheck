@@ -54,6 +54,10 @@ The page explains medical terms from `data/glossary.csv` (fixed, human-reviewabl
 `scripts/make_glossary_review.py` splits the glossary across the team for review. Glosses are display-only:
 all scores and flags are computed on the model's own text.
 
+## Figures
+
+`figures/` holds screenshots, diagrams and charts for the paper, report and slides, with an index (`figures/README.md`). Regenerate with `pip install -r requirements-figures.txt`, then `scripts/make_figures.py` and `scripts/capture_screenshots.py`.
+
 ## 3D body map (demo)
 The page places each report sentence on a real-anatomy 3D body (BodyParts3D, CC BY 4.0; credit shown on the page).
 One-time setup, all offline afterwards:

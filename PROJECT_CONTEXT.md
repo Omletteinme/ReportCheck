@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md
 
-Single self-contained description of this project, written so a person or an AI that has only this file can understand it. Last updated 2026-11-03. Repo: https://github.com/Omletteinme/ReportCheck (public). `README.md` has setup/run commands only.
+Single self-contained description of this project, written so a person or an AI that has only this file can understand it. Last updated 2026-11-03 (after the UI redesign, file upload and figures folder). Repo: https://github.com/Omletteinme/ReportCheck (public). `README.md` has setup/run commands only.
 
 **TL;DR.** University NLP course project (4-person student team, RV University, Bengaluru; interim review about 2026-11-04, final deadline first week of December 2026). It turns radiology reports into patient-friendly text with a small *pretrained, unmodified* LLM (Qwen2.5-1.5B-Instruct) and adds an original **verifier** that checks whether a rewrite kept the report's meaning, numbers, left/right sides, severity words, comparisons, level of certainty (hedges such as "possible", "likely") and key content. The verifier picks the best of about 11 drafts ("best-of-N") and drives a local web demo with a 3D body map. **Nothing has been fine-tuned**; a DPO training step was planned and is paused. Runs locally on one RTX 4060 Laptop GPU (8 GB). Every quality label so far was assigned by an AI (Claude), not by humans. Prototype, not a clinical tool.
 
@@ -41,13 +41,15 @@ report text ("FINDINGS: ... IMPRESSION: ...")
 ```
 PROJECT_CONTEXT.md, README.md, requirements.txt, pytest.ini, .gitignore
 src/        library code (section 5)
-scripts/    runnable builders and experiments (22 files)
-tests/      pytest suite, 119 passing (2 opt-in model tests skipped)
-demo/       server.py, index.html, body3d.js, examples.json (generated), assets/ (anatomy.glb 46 MB, anatomy.json,
+scripts/    runnable builders and experiments (24 files)
+tests/      pytest suite, 135 passing (2 opt-in model tests skipped)
+demo/       server.py, extract.py (uploaded .txt/.docx/.pdf to text), index.html, body3d.js, examples.json (generated), assets/ (anatomy.glb 46 MB, anatomy.json,
             ATTRIBUTION.txt), vendor/ (three.js, GSAP)
 data/       reports.jsonl (Open-i, 3,159), plaba.jsonl (749), synthetic.jsonl (50), glossary.csv (95 terms),
             split.json, candidates.jsonl (15 reports, DPO pairs), raw/ (downloads, not in git)
 results/    evaluation outputs, labels, summaries, human_labeling/, review/
+figures/    images for the paper, report and slides (committed): demo/ screenshots, diagrams/ (SVG+PNG), charts/ (PNG+PDF),
+            README.md index with captions and caveats; regenerate with scripts/capture_screenshots.py and scripts/make_figures.py
 ```
 Key results files: `final_eval.jsonl` (240 rows), `final_eval_candidates.jsonl` (every candidate text for the 120 reports), `final_eval_labels.csv` (202 AI labels), `final_summary.md` (table), `verifier_auc_before.txt` / `verifier_auc_after.txt`, `verifier_eval{,2,3}.jsonl` + `_labels.csv`, `human_labeling/` (GUIDELINES.md, MESSAGE.txt, glossary_review.csv, per-teammate sheets; `claude_key.csv` is private and git-ignored), `review/sample_inputs*.md` (demo inputs).
 
@@ -68,16 +70,16 @@ Key results files: `final_eval.jsonl` (240 rows), `final_eval_candidates.jsonl` 
 - Label columns: H hedge/certainty changed, N number/side/time wrong or invented, F unsupported or wrong content (invented diagnosis or reassurance, wrong gloss, wrong location, added severity), f minor gloss slip only (not counted as error), O (final set only) key impression/recommendation left out.
 
 ## 7. Interfaces
-- Demo server `demo/server.py` at http://localhost:8000: `GET /`, `/api/examples`, `/api/summary` (table from `results/final_summary.md`), `POST /api/run {report, mode: "quick"|"best"}` (quick about 30 s, best about 2-3 min; one request at a time, 409 if busy). Static `/vendor`, `/assets`, `/body3d.js` are whitelisted with a traversal guard.
-- Page: 3D body map (BodyParts3D, CC BY 4.0; full skeleton including limbs; "Chest / Whole body" switch; sentences placed on regions by word rules, so positions are approximate; falls back to a flat SVG without WebGL), "Patient version / Original report" switch for what is placed on the map, three comparison columns (original, plain LLM, verifier-selected) with highlighted flags (wrong number, wrong side, number on wrong side, added severity, added comparison, hedge changed, unsupported, "may be left out"), score bars, glossary toggle, 120-report comparison table.
-- Scripts (all via `.venv/Scripts/python`): `eval_bestofn.py --reports final [--rescore | --show A B | --score | --limit N]`, `eval_verifier.py`, `build_demo.py`, `build_anatomy.py`, `fetch_vendor.py`, `make_sample_inputs.py`, `make_label_sheets.py`, `score_human_labels.py`, `build_pairs.py` (paused), data builders (`get_data`, `get_plaba`, `make_synthetic`, `make_split`). `--rescore` re-picks outputs from cached candidates with the current verifier (no generation).
+- Demo server `demo/server.py` at http://localhost:8000: `GET /`, `/api/examples`, `/api/summary` (table from `results/final_summary.md`), `POST /api/extract` (raw file body, `X-Filename` header; returns the text of a .txt/.docx/.pdf, max 5 MB, PDF text layer only), `POST /api/run {report, mode: "quick"|"best"}` (quick about 30 s, best about 2-3 min; one request at a time, 409 if busy). Static `/vendor`, `/assets`, `/body3d.js` are whitelisted with a traversal guard.
+- Page: 3D body map (BodyParts3D, CC BY 4.0; full skeleton including limbs; "Chest / Whole body" switch; sentences placed on regions by word rules, so positions are approximate; falls back to a flat SVG without WebGL), "Patient version / Original report" switch for what is placed on the map, callout cards with leader lines. Right column: report box (examples, paste, or upload .txt/.docx/.pdf), Quick check / Best of 8, then an output card with tabs (Checked draft, Plain draft, Original) showing highlighted flags (wrong number, wrong side, number on wrong side, added severity, added comparison, hedge changed, unsupported, "may be left out") with score bars, and a findings explorer (filter chips, prev/next, one statement at a time). Light mode only; animated header; glossary toggle; 120-report comparison table. The earlier score cards and side-by-side comparison were removed, and the page no longer states that the model is pretrained, so slides must say so.
+- Scripts (all via `.venv/Scripts/python`): `eval_bestofn.py --reports final [--rescore | --show A B | --score | --limit N]`, `eval_verifier.py`, `build_demo.py`, `build_anatomy.py`, `fetch_vendor.py`, `make_sample_inputs.py`, `make_label_sheets.py`, `capture_screenshots.py` and `make_figures.py` (need `requirements-figures.txt`: playwright, matplotlib; see figures/README.md), `score_human_labels.py`, `build_pairs.py` (paused), data builders (`get_data`, `get_plaba`, `make_synthetic`, `make_split`). `--rescore` re-picks outputs from cached candidates with the current verifier (no generation).
 
 ## 8. Setup, run, test
 ```
 python -m venv .venv
 .venv/Scripts/python -m pip install torch --index-url https://download.pytorch.org/whl/cu124
 .venv/Scripts/python -m pip install -r requirements.txt
-.venv/Scripts/python -m pytest -q                       # 119 passed, 2 skipped
+.venv/Scripts/python -m pytest -q                       # 135 passed, 2 skipped
 .venv/Scripts/python demo/server.py                     # then open http://localhost:8000
 .venv/Scripts/python scripts/eval_bestofn.py --reports final           # GPU, resumable, ~50-120 s/report
 .venv/Scripts/python scripts/eval_bestofn.py --reports final --score   # needs results/final_eval_labels.csv
