@@ -2,7 +2,7 @@
 
 GET  /              the page
 GET  /api/examples  pre-computed examples (demo/examples.json, made by scripts/build_demo.py)
-GET  /api/summary   held-out comparison table (results/heldout_summary.md)
+GET  /api/summary   comparison table on 120 unseen reports (results/final_summary.md)
 POST /api/run       {"report": str, "mode": "quick" | "best"} -> live drafts scored by the verifier
                     quick = baseline draft + structured draft, best of the two (~30 s)
                     best  = best of 10 sampled drafts plus the baseline draft (~2-3 min)
@@ -99,7 +99,7 @@ class Handler(BaseHTTPRequestHandler):
             path = DEMO / "examples.json"
             self._json(200, json.loads(path.read_text(encoding="utf-8")) if path.exists() else [])
         elif self.path == "/api/summary":
-            path = ROOT / "results" / "heldout_summary.md"
+            path = ROOT / "results" / "final_summary.md"
             self._json(200, {"markdown": path.read_text(encoding="utf-8") if path.exists() else ""})
         elif found := static_file(self.path):
             file, mime = found

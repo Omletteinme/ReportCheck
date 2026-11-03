@@ -352,7 +352,7 @@
     <span>red bar on the left: sentence not supported by the report</span>
   </div>
 
-  <section class="card foot-card" id="heldout" hidden><h2>Held-out comparison (40 unseen reports)</h2><div id="summary"></div></section>
+  <section class="card foot-card" id="heldout" hidden><h2>Comparison on 120 unseen reports</h2><div id="summary"></div></section>
   </main>
 </div>
 </div>
@@ -366,12 +366,15 @@ const KIND_TIP = {
   "added severity": "A severity or size word the report does not use.",
   "hedge changed": "Certainty level differs from the report.",
   "unsupported": "Not supported by any sentence in the report.",
+  "number on wrong side": "This number is tied to a different side than in the report.",
+  "added comparison": "A comparison (larger, greater, worse...) the report does not make, or with the sides swapped.",
 };
 const BARS = [
   ["entail", "Meaning kept", "Sentences supported by the report (NLI check)"],
   ["numbers", "Numbers & sides", "Numbers, left/right and severity words match the report"],
   ["certainty", "Certainty kept", "Hedges (possible, likely) kept at the same strength"],
   ["simplicity", "Plainer wording", "Readability gain; zero for near-copies"],
+  ["coverage", "Nothing left out", "Impression, recommendations and hedged or measured findings are still stated (NLI check, noisy on paraphrases)"],
   ["total", "Overall", "Weighted total used to pick the best draft"],
 ];
 
@@ -614,7 +617,10 @@ function issues(summary) {
   if (summary.wrong_sides.length) items.push(`Side not in report: ${summary.wrong_sides.join(", ")}`);
   if (summary.wrong_qualifiers.length) items.push(`Added severity words (${summary.wrong_qualifiers.join(", ")})`);
   if (summary.dropped_levels.length) items.push(`Hedge dropped: ${summary.dropped_levels.join(", ")} was in the report`);
-  return items.length ? `<ul class="issues">${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>` : `<ul class="issues ok"><li>No number, side or hedge problems found</li></ul>`;
+  if ((summary.misplaced_numbers || []).length) items.push(`Number tied to the wrong side: ${summary.misplaced_numbers.join(", ")}`);
+  if ((summary.wrong_comparisons || []).length) items.push(`Comparison not in the report: ${summary.wrong_comparisons.join(", ")}`);
+  (summary.possibly_omitted || []).forEach((k) => items.push(`May be left out: ${k}`));
+  return items.length ? `<ul class="issues">${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul>` : `<ul class="issues ok"><li>No number, side, hedge or omission problems found</li></ul>`;
 }
 function bars(score) {
   return `<div class="bars">${BARS.map(([k, label, tip]) => {

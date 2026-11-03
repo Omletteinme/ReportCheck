@@ -1,7 +1,9 @@
 """Verifier stack (Gap 3): entailment + numeric fidelity + certainty match + simplicity.
 
 Used as the best-of-N selector now and as the preference/reward signal for DPO later.
-Higher is better; every component and the total are in [0, 1].
+Higher is better; every component and the total are in [0, 1]. `coverage` is the omission check: the
+clinically loaded source sentences (impression, recommendations, hedged/measured/graded findings) must be
+entailed by the output.
 """
 import os
 import re
@@ -10,12 +12,14 @@ from dataclasses import dataclass, field
 os.environ.setdefault("USE_TF", "0")  # global TF install clashes with protobuf
 
 from . import numbers
+from .discourse import parse_report
 from .hedge import RANK, certainty_profile, hedges, sentence_certainty
 from .text import split_sentences
 
 NLI_MODEL = "cross-encoder/nli-deberta-v3-base"
-WEIGHTS = {"entail": 0.35, "numbers": 0.25, "certainty": 0.25, "simplicity": 0.15}
+WEIGHTS = {"entail": 0.2975, "numbers": 0.2125, "certainty": 0.2125, "simplicity": 0.1275, "coverage": 0.15}
 SUPPORT_FLAG = 0.5  # an output sentence supported less than this is flagged "unsupported" in explain()
+COVERAGE_FLAG = 0.3  # a key source sentence the output supports less than this is listed as possibly omitted
 
 
 class NliEntailer:
@@ -87,6 +91,26 @@ def simplicity_score(source: str, output: str) -> float:
     return min(1.0, max(0.0, gain)) * (0.5 if n_out > 3 * n_src else 1.0)
 
 
+# Plain negatives and normal findings: leaving them out is not an omission ("No pneumothorax.", "Heart size is normal.")
+_NORMAL_RE = re.compile(
+    r"^(?:there (?:is|are) )?no\b|\bno (?:acute|focal|evidence|definite|pleural|pneumothorax|significant)\b"
+    r"|\bwithin normal limits\b|\bunremarkable\b|\bnormal (?:in|size|appearance|contour|heart|cardiac|mediastinal)\b"
+    r"|\b(?:lungs?|chest) (?:(?:is|are) )?clear\b|\bintact\b", re.I)
+
+
+def key_sentences(source: str) -> list[str]:
+    """Source sentences whose loss would change what the patient is told: impression and recommendation sentences
+    that are not plain normals, plus findings that carry a hedge, a measurement or a severity word."""
+    keep = []
+    for unit in parse_report(source).units:
+        loaded = unit.certainty != "definite" or unit.numbers or numbers.qualifier_groups(unit.text)
+        normal = _NORMAL_RE.search(unit.text)
+        if unit.role == "recommendation" or (unit.role == "impression" and not normal) \
+                or (unit.role == "finding" and loaded and not normal):
+            keep.append(unit.text)
+    return keep
+
+
 @dataclass
 class Score:
     entail: float
@@ -95,6 +119,7 @@ class Score:
     simplicity: float
     total: float
     details: dict = field(default_factory=dict)
+    coverage: float = 1.0
 
 
 class Verifier:
@@ -117,18 +142,37 @@ class Verifier:
             best = [max(b, p) for b, p in zip(best, self.entail_fn(premise, hypotheses))]
         return [(s, p) for (s, _), p in zip(pairs, best)]
 
+    def coverage(self, source: str, output: str) -> list[tuple[str, float]]:
+        """Reverse check: each key source sentence with its best support from the whole output, one output sentence or
+        two adjacent ones (a finding is often split across lines). Glosses stay in: they are the model's own words and
+        often carry the term. Empty when the source has no key sentences."""
+        keys = key_sentences(source)
+        if not keys:
+            return []
+        sentences = split_sentences(output)
+        if not sentences:
+            return [(k, 0.0) for k in keys]
+        best = [0.0] * len(keys)
+        pairs = [" ".join(sentences[i:i + 2]) for i in range(len(sentences) - 1)]
+        for premise in [" ".join(sentences)] + sentences + pairs:
+            best = [max(b, p) for b, p in zip(best, self.entail_fn(premise, keys))]
+        return list(zip(keys, best))
+
     def entailment(self, source: str, output: str) -> float:
         """Mean support over the output sentences."""
         probs = [p for _, p in self.support(source, output)]
         return sum(probs) / len(probs) if probs else 0.0
 
-    def _score(self, source: str, output: str, support: list[tuple[str, float]]) -> Score:
+    def _score(self, source: str, output: str, support: list[tuple[str, float]],
+               covered: list[tuple[str, float]] | None = None) -> Score:
         num = numbers.compare(source, output)
+        covered = self.coverage(source, output) if covered is None else covered
         parts = {
             "entail": sum(p for _, p in support) / len(support) if support else 0.0,
             "numbers": num["score"],
             "certainty": certainty_score(source, output),
             "simplicity": simplicity_score(source, output),
+            "coverage": sum(p for _, p in covered) / len(covered) if covered else 1.0,
         }
         total = sum(self.weights[k] * v for k, v in parts.items())
         return Score(**parts, total=total, details={"missing": num["missing"], "unsupported": num["unsupported"]})
@@ -138,10 +182,10 @@ class Verifier:
 
     def explain(self, source: str, output: str) -> dict:
         """Score plus what to highlight: per output sentence its support, hedge level and flagged terms."""
-        support = self.support(source, output)
-        score = self._score(source, output, support)
+        support, covered = self.support(source, output), self.coverage(source, output)
+        score = self._score(source, output, support, covered)
         num = numbers.compare(source, output)
-        bad_facts = set(num["unsupported"])
+        bad_facts, misbound = set(num["unsupported"]), set(num["misbound"])
         src_levels = {sentence_certainty(s) for s in split_sentences(source)} - {"definite"}
         sentences = []
         for text, prob in support:
@@ -153,12 +197,18 @@ class Verifier:
             wrong = [m for fact, m in numbers.find_facts(text) if fact in bad_facts]
             if wrong:
                 flags.append({"kind": "wrong number", "terms": wrong})
+            misplaced = [m for fact, m in numbers.find_facts(text) if fact in misbound]
+            if misplaced:
+                flags.append({"kind": "number on wrong side", "terms": misplaced})
             side = [w for w, s in numbers.side_words(text) if s & num["wrong_sides"]]
             if side:
                 flags.append({"kind": "wrong side", "terms": side})
             added = [w for w, g in numbers.qualifier_words(text) if g in num["wrong_qualifiers"]]
             if added:
                 flags.append({"kind": "added severity", "terms": added})
+            compared = [c["word"] for c in numbers.comparisons(text) if c["word"] in num["wrong_comparisons"]]
+            if compared:
+                flags.append({"kind": "added comparison", "terms": compared})
             if found and level not in src_levels:
                 flags.append({"kind": "hedge changed", "terms": [t for t, _ in found]})
             sentences.append({"text": text, "support": prob, "level": level,
@@ -169,11 +219,14 @@ class Verifier:
         fmt = lambda facts: [f"{v:g} {u}" if u else f"{v:g}" for v, u in facts]  # noqa: E731
         return {
             "score": {"entail": score.entail, "numbers": score.numbers, "certainty": score.certainty,
-                      "simplicity": score.simplicity, "total": score.total},
+                      "simplicity": score.simplicity, "coverage": score.coverage, "total": score.total},
             "sentences": sentences,
             "source_sentences": source_sentences,
             "summary": {"missing_numbers": fmt(num["missing"]), "unsupported_numbers": fmt(num["unsupported"]),
                         "wrong_sides": sorted(num["wrong_sides"]), "wrong_qualifiers": sorted(num["wrong_qualifiers"]),
+                        "wrong_comparisons": sorted(set(num["wrong_comparisons"])),
+                        "misplaced_numbers": fmt(num["misbound"]),
+                        "possibly_omitted": [k for k, p in covered if p < COVERAGE_FLAG],
                         "source_levels": sorted(src_levels, key=RANK.get),
                         "output_levels": sorted(out_levels, key=RANK.get),
                         "dropped_levels": sorted(src_levels - out_levels, key=RANK.get)},

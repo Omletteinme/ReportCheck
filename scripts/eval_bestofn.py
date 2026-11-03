@@ -26,6 +26,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+from src.agreement import auc  # noqa: E402
 from src.bestofn import acceptable, best_of_n, choose, rank  # noqa: E402
 from src.data import labeled_ids, load_reports, load_split  # noqa: E402
 from src.generate import Generator, build_prompt  # noqa: E402
@@ -113,14 +114,18 @@ def numbered(stem: str, n_reports: int) -> list[dict]:
     if len(rows) != 2 * n_reports:
         raise SystemExit(f"{stem}.jsonl has {len(rows)} rows, expected {2 * n_reports}: finish generation first")
     random.Random(5).shuffle(rows)
-    for i, r in enumerate(rows):
-        r["item"] = i
+    seen: dict[tuple[str, str], int] = {}          # a best-of-N output equal to the plain draft shares one label
+    for r in rows:
+        r["item"] = seen.setdefault((r["report_id"], r["output"]), len(seen))
     return rows
 
 
 def show(rows: list[dict], start: int, end: int):
+    """Blind view: each distinct output once, no system name, no scores."""
+    shown = set()
     for r in rows:
-        if start <= r["item"] < end:
+        if start <= r["item"] < end and r["item"] not in shown:
+            shown.add(r["item"])
             print(f"### ITEM {r['item']}\nSOURCE: {r['source']}\nOUTPUT: {r['output']}\n")
 
 
@@ -141,7 +146,8 @@ def score(key: str):
     verifier = Verifier()
     for r in rows:
         s = verifier.score(r["source"], r["output"])
-        r.update(entail=s.entail, numbers=s.numbers, certainty=s.certainty, simplicity=s.simplicity, total=s.total,
+        r.update(entail=s.entail, numbers=s.numbers, certainty=s.certainty, simplicity=s.simplicity,
+                 coverage=s.coverage, total=s.total,
                  passes=float(acceptable(s)), fk=_fk_grade(" ".join(split_sentences(r["output"]))),
                  overlap=jaccard(r["source"], r["output"]))
     by = {s: {r["report_id"]: r for r in rows if r["system"] == s} for s in SYSTEMS}
@@ -151,15 +157,17 @@ def score(key: str):
         labels = {int(r["item"]): r for r in csv.DictReader(labels_path.open(encoding="utf-8"))}
         for r in rows:
             lab = labels[r["item"]]
-            r.update(H=float(lab["H"]), N=float(lab["N"]), F=float(lab["F"]),
+            r.update(H=float(lab["H"]), N=float(lab["N"]), F=float(lab["F"]), O=float(lab.get("O") or 0),
                      err=float(any(lab[k] == "1" for k in "HNF")))
-    metrics = ["passes", "entail", "numbers", "certainty", "simplicity", "total", "fk", "overlap"]
+    metrics = ["passes", "entail", "numbers", "certainty", "simplicity", "coverage", "total", "fk", "overlap"]
     if labels_path.exists():
-        metrics += ["H", "N", "F", "err"]
+        metrics += ["H", "N", "F", "O", "err"]
     names = {"passes": "pass all hard checks", "entail": "meaning (entailment)", "numbers": "numbers/sides",
-             "certainty": "certainty", "simplicity": "simplicity", "total": "verifier total",
+             "certainty": "certainty", "simplicity": "simplicity", "coverage": "nothing left out (coverage)",
+             "total": "verifier total",
              "fk": "reading grade (FK)", "overlap": "word overlap w/ source", "H": "hedge error (labeled)",
-             "N": "number/side error (labeled)", "F": "unsupported content (labeled)", "err": "any error (labeled)"}
+             "N": "number/side error (labeled)", "F": "unsupported content (labeled)",
+             "O": "key finding left out (labeled)", "err": "any error H/N/F (labeled)"}
     lines = [f"# Plain LLM vs best-of-N ({key}, {len(rids)} reports)", "",
              "| metric | plain LLM | best-of-N | difference (95% CI, paired bootstrap) |", "|---|---|---|---|"]
     for m in metrics:
@@ -168,8 +176,19 @@ def score(key: str):
         lo, hi = boot_ci([y - x for x, y in zip(a, b)])
         lines.append(f"| {names[m]} | {sum(a) / len(a):.2f} | {sum(b) / len(b):.2f} | "
                      f"{(sum(b) - sum(a)) / len(a):+.2f} ({lo:+.2f} to {hi:+.2f}) |")
+    if labels_path.exists():
+        # the verifier did not pick the plain drafts, so its ability to rank them is not circular
+        plain = [by["plain"][i] for i in rids]
+        lines += ["", f"## Verifier AUC on the {len(plain)} plain outputs (not circular; 0.5 = chance)", "",
+                  "| score vs label | AUC | positives |", "|---|---|---|"]
+        for score_key, label_key, text in (("total", "err", "total vs any H/N/F error"), ("certainty", "H", "certainty vs H"),
+                                           ("numbers", "N", "numbers vs N"), ("entail", "F", "entail vs F"),
+                                           ("coverage", "O", "coverage vs O (omission)")):
+            bad = [bool(r[label_key]) for r in plain]
+            a = auc([r[score_key] for r in plain], bad)
+            lines.append(f"| {text} | {a:.2f} | {sum(bad)} |")
     lines += ["", "Verifier-based rows are circular for best-of-N (the verifier selects and scores). "
-              "Labeled rows (if present) were assigned blind by Claude, not humans. Reading grade: lower is easier."]
+              "Labeled rows (if present) were assigned blind by Claude (an AI), not by humans. Reading grade: lower is easier."]
     text = "\n".join(lines) + "\n"
     (RES / f"{stem.replace('_eval', '')}_summary.md").write_text(text, encoding="utf-8")
     print(text)

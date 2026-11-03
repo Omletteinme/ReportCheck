@@ -1,124 +1,121 @@
 # PROJECT_CONTEXT.md
 
-**TL;DR.** University NLP course project (4-person student team, RV University, Bengaluru; final deadline first week of Dec 2026, an interim review about 2026-11-04). It turns radiology reports into patient-friendly text with a small *pretrained, unmodified* LLM (Qwen2.5-1.5B-Instruct) and adds an original **verifier** that checks whether each rewrite kept the report's meaning, numbers, left/right sides, severity words and level of certainty (hedges like "possible", "likely"). The verifier is used to pick the best of ~11 drafts ("best-of-N") and drives a local web demo. Nothing has been fine-tuned; a DPO training step (preference pairs ranked by the verifier) was planned but is paused. Everything runs locally on one RTX 4060 Laptop GPU (8 GB). All quality labels so far were assigned by an AI (Claude), not humans; human labeling by teammates is pending. No git repo, no CI/deploy.
+Single self-contained description of this project, written so a person or an AI that has only this file can understand it. Last updated 2026-11-03. Repo: https://github.com/Omletteinme/ReportCheck (public). `README.md` has setup/run commands only.
+
+**TL;DR.** University NLP course project (4-person student team, RV University, Bengaluru; interim review about 2026-11-04, final deadline first week of December 2026). It turns radiology reports into patient-friendly text with a small *pretrained, unmodified* LLM (Qwen2.5-1.5B-Instruct) and adds an original **verifier** that checks whether a rewrite kept the report's meaning, numbers, left/right sides, severity words, comparisons, level of certainty (hedges such as "possible", "likely") and key content. The verifier picks the best of about 11 drafts ("best-of-N") and drives a local web demo with a 3D body map. **Nothing has been fine-tuned**; a DPO training step was planned and is paused. Runs locally on one RTX 4060 Laptop GPU (8 GB). Every quality label so far was assigned by an AI (Claude), not by humans. Prototype, not a clinical tool.
 
 ## 1. Overview
-- **Problem.** Patients read raw radiology reports in online portals. LLM rewrites can silently change numbers, flip hedges ("may represent" -> "is"), swap left/right, or invent reassurance/advice. Common metrics (readability grade, SARI, BLEU) do not detect this.
-- **Idea (from the team's IEEE-format literature review, which proposed it as a build plan).** Four gaps: (1) uncertainty is detected but not preserved/calibrated for patients, (2) discourse structure is not used to condition generation, (3) training rewards wording not meaning, (4) success is measured by readability, not comprehension. This repo implements (1) and (2) as rules/prompting, (3) only as a verifier used for selection (training not done), and has not implemented (4).
-- **Audience.** Course reviewers; the code is a research prototype, not a clinical tool.
-- **Maturity (2026-10-29).** Working pipeline + demo + tests (72 pass, 2 opt-in skipped). Evaluation evidence is small and AI-labeled. Not validated clinically.
+- **Problem.** Patients read raw radiology reports in portals. LLM rewrites can silently change numbers, flip hedges ("may represent" to "is"), swap left/right, drop findings, or invent reassurance and advice. Readability scores, SARI and BLEU do not detect this.
+- **Idea** (from the team's IEEE-format literature review, which proposed it as a build plan; the user said the paper itself does not matter): four gaps: (1) uncertainty is detected but not preserved for patients, (2) discourse structure is not used, (3) training rewards wording not meaning, (4) success is measured by readability not comprehension. This repo implements (1) and (2) as rules and prompting, (3) only as a verifier used for selection, and does not implement (4).
+- **Honest claim.** "Verifier-guided selection with a pretrained model, evaluated against blind labels assigned by an AI." Not claimed: a trained model, human-validated results, simpler text, patient comprehension.
 
 ## 2. Tech stack
-- Windows 11, Python 3.11.9, project venv `.venv` (do not use global Python: it is polluted with TensorFlow/old protobuf).
-- torch 2.6.0+cu124, transformers 5.20.2, trl 1.16.0, peft 0.21.2, accelerate 1.15.0, bitsandbytes 0.50.2, datasets 5.1.0, sentence-transformers 6.2.0, textstat 0.7.13, numpy 2.4.6, pandas 3.0.6, hf-xet 1.7.0, pytest 9.1.1. (trl/peft/bitsandbytes are installed but unused so far.)
-- Models (Hugging Face Hub, used as downloaded): `Qwen/Qwen2.5-1.5B-Instruct` (generator, fp16, ~3 GB VRAM), `cross-encoder/nli-deberta-v3-base` (entailment judge). `Qwen/Qwen2.5-3B-Instruct` and `cross-encoder/nli-deberta-v3-small` were used only in experiments.
-- Demo: Python stdlib `http.server` + one vanilla HTML/JS file. No web framework, no database.
-- Data: JSONL/CSV files on disk.
+- Windows 11, Python 3.11, project venv `.venv` (never the global Python: polluted with TensorFlow/old protobuf).
+- torch 2.6.0+cu124, transformers 5.20.2, sentence-transformers, textstat, trimesh (3D build), numpy, pandas, pytest. trl/peft/bitsandbytes installed but unused (training paused).
+- Models from Hugging Face, used as downloaded: `Qwen/Qwen2.5-1.5B-Instruct` (generator, fp16, ~3 GB VRAM) and `cross-encoder/nli-deberta-v3-base` (entailment judge). Qwen2.5-3B and nli-deberta-v3-small were used only in experiments.
+- Demo: Python stdlib `http.server` + one vanilla HTML/JS page + three.js 0.160.0 and GSAP 3.12.5 (vendored, no CDN). No framework, no database.
+- Data on disk as JSONL/CSV. Git repo exists (one branch `main`); no CI or deploy.
 
 ## 3. Architecture
 ```
 report text ("FINDINGS: ... IMPRESSION: ...")
-   |
-   v
-discourse.parse_report -> Units (role: finding/impression/recommendation,
-                         certainty level, numbers) + relations (summarizes, motivated_by)
-   |
-   v
-generate.build_prompt (modes: baseline | structured | structured_plain)
-   |                                     Generator (Qwen2.5-1.5B) samples drafts
-   v
-bestofn.sample_candidates: per structured mode 1 greedy + 4 samples (T=0.8) = 10, plus the plain draft
-   |
-   v
-verify.Verifier.score(source, draft) = 0.35*entail + 0.25*numbers + 0.25*certainty + 0.15*simplicity
-   |
-   v
-bestofn.choose: top draft passing hard checks, else top scorer
-   |
-   v
-demo: explain() flags words/sentences; glossary.annotate adds fixed term explanations (display only)
+  -> discourse.parse_report: units (finding/impression/recommendation, certainty, numbers) + relations
+  -> generate.build_prompt (baseline | structured | structured_plain), Qwen2.5-1.5B drafts
+  -> bestofn.sample_candidates: per structured mode 1 greedy + 4 samples (T=0.8) = 10, plus the plain baseline draft
+  -> verify.Verifier.score(source, draft) = weighted sum of 5 components (below)
+  -> bestofn.choose: top draft passing hard checks, else top scorer
+  -> demo: explain() flags words/sentences; glossary.annotate adds fixed term explanations (display only)
 ```
-Offline evaluation: labeled output sets -> `scripts/eval_verifier.py` (AUC), plain-vs-best-of-N on held-out reports -> `scripts/eval_bestofn.py`.
+**Verifier components** (each in [0, 1]; `WEIGHTS` in `src/verify.py`):
+| component | weight | what it checks |
+|---|---|---|
+| entail | 0.2975 | mean over output sentences of best NLI support (whole source and each source sentence; parenthetical glosses stripped) |
+| numbers | 0.2125 | number/unit F1 (cm normalized to mm) minus 0.25 per unsupported side, 0.125 per missing side, 0.25 per added severity group, **0.25 per comparison the source does not make or with sides swapped, 0.25 per number moved to the other side** |
+| certainty | 0.2125 | distinct hedge levels (unlikely < possible < likely < definite) preserved, none added or dropped |
+| simplicity | 0.1275 | Flesch-Kincaid gain / 5; 0 for near-copies (word Jaccard > 0.85) or outputs < 0.4x source length |
+| coverage | 0.15 | **omission check**: key source sentences (impression, recommendations, and findings that carry a hedge, measurement or severity word; plain normals like "No pneumothorax." excluded) must be entailed by the output (best over whole output, one sentence, or two adjacent sentences) |
+
+`bestofn.acceptable` (hard checks to be chosen): numbers >= 1.0, certainty >= 0.75, entail >= 0.7, simplicity >= 0.1. Coverage is a soft score only because the NLI check is noisy on paraphrases. `preference_pair` needs a chosen/rejected score gap >= 0.10 (DPO data; not generated at scale).
 
 ## 4. Directory structure
 ```
-PROJECT_CONTEXT.md        this file
-README.md                 setup/run commands (partly stale on eval_bestofn defaults)
-requirements.txt, pytest.ini
-src/                      library code (see section 5)
-scripts/                  runnable experiments/builders (19 files)
-tests/                    pytest suite, one file per src module
-demo/                     server.py, index.html, body3d.js (3D viewer), examples.json (generated),
-                          assets/ (anatomy.glb 43 MB, anatomy.json, ATTRIBUTION.txt), vendor/ (three.js 0.160.0, GSAP 3.12.5)
-data/                     reports.jsonl (Open-i), plaba.jsonl, synthetic.jsonl, glossary.csv,
-                          split.json, candidates.jsonl (15 reports), raw/ (downloads)
-results/                  labeled outputs, labels, summaries, human_labeling/, review/
-.venv/                    virtual environment
+PROJECT_CONTEXT.md, README.md, requirements.txt, pytest.ini, .gitignore
+src/        library code (section 5)
+scripts/    runnable builders and experiments (22 files)
+tests/      pytest suite, 119 passing (2 opt-in model tests skipped)
+demo/       server.py, index.html, body3d.js, examples.json (generated), assets/ (anatomy.glb 46 MB, anatomy.json,
+            ATTRIBUTION.txt), vendor/ (three.js, GSAP)
+data/       reports.jsonl (Open-i, 3,159), plaba.jsonl (749), synthetic.jsonl (50), glossary.csv (95 terms),
+            split.json, candidates.jsonl (15 reports, DPO pairs), raw/ (downloads, not in git)
+results/    evaluation outputs, labels, summaries, human_labeling/, review/
 ```
-Key results files: `results/verifier_tuning_summary.md`, `phase1_gate.md`, `heldout_summary.md`, `verifier_eval{,2,3}.jsonl` + `_labels.csv`, `human_labeling/` (guidelines, sheets, private `claude_key.csv`).
+Key results files: `final_eval.jsonl` (240 rows), `final_eval_candidates.jsonl` (every candidate text for the 120 reports), `final_eval_labels.csv` (202 AI labels), `final_summary.md` (table), `verifier_auc_before.txt` / `verifier_auc_after.txt`, `verifier_eval{,2,3}.jsonl` + `_labels.csv`, `human_labeling/` (GUIDELINES.md, MESSAGE.txt, glossary_review.csv, per-teammate sheets; `claude_key.csv` is private and git-ignored), `review/sample_inputs*.md` (demo inputs).
 
 ## 5. Key modules (`src/`)
-- `text.py`: `split_sentences` (markdown/section-aware), `strip_markdown`.
-- `patterns.py`: regexes for hedges, numbers, recommendations, normal reports (used by data scripts).
-- `hedge.py`: 4-level certainty scale `unlikely < possible < likely < definite`; `hedges`, `sentence_certainty` (weakest hedge wins), `certainty_profile`; `_EXCLUDE_RE` removes false hedges ("could be performed", "consistent with known ..."); works on clinical and patient wording.
-- `numbers.py`: `find_facts`/`extract` (value+unit, cm normalized to mm, number words), `side_words`/`sides` (left/right/bilateral/both; idioms like "right now" excluded), `qualifier_words` (low/mid/high severity groups, negations ignored), `compare(source, output)` -> `{missing, unsupported, wrong_sides, wrong_qualifiers, score}`; score = number F1 minus 0.25 per wrong side, 0.125 per missing side, 0.25 per added severity group. Not bound to findings (a correct number on the wrong finding passes).
-- `discourse.py`: `parse_report` -> `Report(units, edges)`; `Unit(id, role, text, certainty, numbers)`; rule-based.
-- `generate.py`: `Generator(model_id).generate(prompt, n, temperature, max_new_tokens)` (lazy load, CUDA required), `build_prompt`, `structured_prompt`, `BASELINE_PROMPT`, `PATIENT_PHRASE` tags.
-- `verify.py`: `NliEntailer` (DeBERTa), `Verifier` with `support` (per-sentence max entailment over whole source and each source sentence; parenthetical glosses removed), `entailment`, `score` -> `Score(entail, numbers, certainty, simplicity, total)`, `explain` (per-sentence flags: unsupported / wrong number / wrong side / added severity / hedge changed), `rank`. `certainty_score` compares sets of hedge levels; `simplicity_score` uses Flesch-Kincaid gain /5, 0 for near-copies (word Jaccard > 0.85) or outputs < 0.4x source length. Constants: `WEIGHTS`, `SUPPORT_FLAG=0.5`, `NLI_MODEL`.
-- `bestofn.py`: `sample_candidates`, `rank`, `acceptable` (numbers >= 1.0, certainty >= 0.75, entail >= 0.7, simplicity >= 0.1), `choose`, `preference_pair` (chosen acceptable best vs worst, gap >= 0.10), `best_of_n(..., extra=(plain_draft,))`, `looks_truncated`.
-- `glossary.py`: `load`, `gloss_sentences`, `gloss`, `annotate`; fixed plain-language explanations for 95 terms from `data/glossary.csv`, inserted once per term as "term (explanation)"; display-only.
-- `data.py`: `load_reports`, `load_split`, `labeled_ids`. `agreement.py`: `auc`, `cohen_kappa`, `majority`.
+- `text.py` sentence splitting (markdown/section aware). `patterns.py` regexes. `data.py` loaders and `labeled_ids`. `agreement.py` `auc`, `cohen_kappa`, `majority`.
+- `hedge.py` 4-level certainty scale; `hedges`, `sentence_certainty` (weakest hedge wins), `certainty_profile`; false-hedge exclusions ("could be performed"); lexicon includes "cannot rule out".
+- `numbers.py` `find_facts`/`extract`, `sides` (idioms like "right now" excluded), `qualifier_words`, **`comparisons`** ("left greater than right", direction normalized, glosses skipped), **`wrong_comparisons`**, **`misbound_numbers`** (number tied to a different side than in the source), `compare` returning `{missing, unsupported, wrong_sides, wrong_qualifiers, wrong_comparisons, misbound, score}`. Numbers are still not bound to the specific finding, only to a side.
+- `discourse.py` `parse_report` -> `Report(units, edges)`; keeps repeated section labels (a past bug dropped them).
+- `generate.py` `Generator` (CUDA required), `build_prompt`. `bestofn.py` `sample_candidates`, `rank`, `acceptable`, `choose`, `preference_pair`, `best_of_n(..., extra=(plain_draft,))`.
+- `verify.py` `NliEntailer`, `Verifier` (`support`, `coverage`, `score`, `explain`, `rank`), `key_sentences`, `certainty_score`, `simplicity_score`, `Score(entail, numbers, certainty, simplicity, total, details, coverage)`.
+- `glossary.py` fixed 95-term plain-language glossary, inserted once per term as "term (explanation)", display-only (never affects scores); a test forbids hedges, sides, severity words and numbers inside explanations.
+- `anatomy.py` helpers for the 3D map (`GROUPS` incl. limb bones, `REGION_NODES`, `orientation`, `region_anchors`, `keep_near`).
 
-## 6. Data models
-- Report record (JSONL): `{id, source: "openi"|"synthetic", findings, impression, text}`; PLABA: `{id, source:"plaba", title, text, reference}`; synthetic adds `meta{numbers, certainty, followup}`.
-- `data/split.json`: `{train: [645 ids], test: [120 ids]}`. Test = 60 reports used in labeled evaluation + 40 held-out Open-i + 20 synthetic (`synth_030-049`); train = other eligible Open-i + `synth_000-029`. Labeled-evaluation reports must never enter training.
-- `candidates.jsonl`: `{id, source, candidates:[{text, entail, numbers, certainty, simplicity, total}]}`; `pairs.jsonl` (`id, prompt, chosen, rejected, scores`) is produced by `build_pairs.py` but **does not exist yet**.
-- Labeled output sets: `{item, report_id, mode, source, output}` + labels CSV `item,H,N,F,f` (H hedge changed, N number/side wrong, F unsupported/wrong content, f minor gloss).
-- `explain()` JSON (demo): `{score, sentences[{text, support, level, hedge_terms, flags[{kind, terms}], parts, gloss_terms}], source_sentences, summary{...}}`.
-- Data facts: 3,159 Open-i reports (public NLM IU X-ray; 51% contain `XXXX` anonymization; 19% hedged; only 4.5% have a unit measurement), 749 PLABA abstracts, 50 synthetic template reports (must be called synthetic).
+## 6. Data
+- Report record: `{id, source: "openi"|"synthetic", findings, impression, text}`. Open-i = public NLM chest X-ray reports (51% contain `XXXX` anonymization; 19% hedged; 4.5% have a unit measurement). PLABA = 749 abstracts (OSF). **50 synthetic reports** (template-written by our generator, `meta` holds ground truth) are labeled synthetic, used only for unit tests and a smoke run, never in any reported evaluation.
+- `split.json`: 645 train / 120 test ids. Reports in labeled evaluation must never enter training (nothing was trained anyway).
+- Evaluation sets: verifier sets 1-3 (40 outputs each; set 3 is 3B-model output) with `item,H,N,F,f` labels; **final set** = 40 held-out Open-i test reports + 80 further Open-i reports from the *train* split not in any labeled set (disclose this); each gets a plain draft and a best-of-N pick (240 rows, 202 distinct outputs because 38 picks equal the plain draft).
+- Label columns: H hedge/certainty changed, N number/side/time wrong or invented, F unsupported or wrong content (invented diagnosis or reassurance, wrong gloss, wrong location, added severity), f minor gloss slip only (not counted as error), O (final set only) key impression/recommendation left out.
 
-## 7. APIs and interfaces
-- Demo server (`demo/server.py`, `http://localhost:8000`): `GET /`, `GET /api/examples`, `GET /api/summary`, `POST /api/run {report, mode: "quick"|"best"}` (quick = baseline + structured draft, ~30 s; best = best-of-10 + plain draft, ~2-3 min; one request at a time, 409 if busy, report <= 3000 chars). Model loads on first live request.
-- Page: a 3D body map (real BodyParts3D anatomy, CC BY 4.0, rendered with three.js; markers are HTML buttons projected from 3D anchors; clicking a marker glides the camera there with GSAP and highlights the organ; one label shown at a time; falls back to a flat SVG figure if the model/WebGL is unavailable), a findings list, score cards, three comparison columns (original, plain LLM, verifier-selected) with highlighted flags and score bars, "Explain medical terms" checkbox, held-out table footer. Static routes `/vendor/...`, `/assets/...`, `/body3d.js` are whitelisted by extension with a path-traversal guard (`static_file`).
-- 3D assets: `scripts/fetch_vendor.py` (libraries), `scripts/build_anatomy.py` (BodyParts3D archive -> `anatomy.glb` + per-region anchors; helpers in `src/anatomy.py`: `select_parts`, `orientation`, `region_anchors`, `keep_near`). BodyParts3D lungs are airway trees only, so lobe shells (smoothed convex hulls) are added. The archive (62 MB) is not in the repo; see README.
-- CLI scripts (all use `.venv/Scripts/python`): `make_split.py`, `build_pairs.py [--limit N --n 8 --pairs-only]`, `eval_bestofn.py [--reports heldout|set2] [--show A B | --score]`, `eval_verifier.py`, `build_demo.py`, `score_human_labels.py`, `make_label_sheets.py`, `make_glossary_review.py`, `glossary_coverage.py`, `data_check.py`, `smoke_baseline.py`, `vram_test.py`, others in `scripts/`.
+## 7. Interfaces
+- Demo server `demo/server.py` at http://localhost:8000: `GET /`, `/api/examples`, `/api/summary` (table from `results/final_summary.md`), `POST /api/run {report, mode: "quick"|"best"}` (quick about 30 s, best about 2-3 min; one request at a time, 409 if busy). Static `/vendor`, `/assets`, `/body3d.js` are whitelisted with a traversal guard.
+- Page: 3D body map (BodyParts3D, CC BY 4.0; full skeleton including limbs; "Chest / Whole body" switch; sentences placed on regions by word rules, so positions are approximate; falls back to a flat SVG without WebGL), "Patient version / Original report" switch for what is placed on the map, three comparison columns (original, plain LLM, verifier-selected) with highlighted flags (wrong number, wrong side, number on wrong side, added severity, added comparison, hedge changed, unsupported, "may be left out"), score bars, glossary toggle, 120-report comparison table.
+- Scripts (all via `.venv/Scripts/python`): `eval_bestofn.py --reports final [--rescore | --show A B | --score | --limit N]`, `eval_verifier.py`, `build_demo.py`, `build_anatomy.py`, `fetch_vendor.py`, `make_sample_inputs.py`, `make_label_sheets.py`, `score_human_labels.py`, `build_pairs.py` (paused), data builders (`get_data`, `get_plaba`, `make_synthetic`, `make_split`). `--rescore` re-picks outputs from cached candidates with the current verifier (no generation).
 
-## 8. Configuration and environment
-- No config files, secrets, or API keys. Env vars: `USE_TF=0` (set automatically in code to avoid a TensorFlow/protobuf clash), `RUN_NLI=1` and `RUN_GPU=1` (opt-in tests that load models).
-- External: Hugging Face Hub (model downloads, large; connection can be slow, `hf_xet` helps), NLM Open-i archive `openi.nlm.nih.gov/imgs/collections/NLMCXR_reports.tgz` (public), PLABA on OSF `osf.io/rnpmf` (public).
-- Hardware: RTX 4060 Laptop 8 GB; generation ~19 tok/s when GPU is free, ~10x slower if a game uses it; laptop throttles near 85 C.
-
-## 9. Setup, run, test
+## 8. Setup, run, test
 ```
 python -m venv .venv
 .venv/Scripts/python -m pip install torch --index-url https://download.pytorch.org/whl/cu124
 .venv/Scripts/python -m pip install -r requirements.txt
-.venv/Scripts/python -m pytest -q                              # 72 passed, 2 skipped
-RUN_NLI=1 RUN_GPU=1 .venv/Scripts/python -m pytest -q          # also loads models
-.venv/Scripts/python scripts/eval_bestofn.py --reports heldout        # GPU, resumable, ~1 min/report
-.venv/Scripts/python scripts/eval_bestofn.py --reports heldout --score
-.venv/Scripts/python scripts/build_demo.py && .venv/Scripts/python demo/server.py
+.venv/Scripts/python -m pytest -q                       # 119 passed, 2 skipped
+.venv/Scripts/python demo/server.py                     # then open http://localhost:8000
+.venv/Scripts/python scripts/eval_bestofn.py --reports final           # GPU, resumable, ~50-120 s/report
+.venv/Scripts/python scripts/eval_bestofn.py --reports final --score   # needs results/final_eval_labels.csv
 ```
-Rebuild data: download/extract Open-i to `data/raw/openi_xml/`, PLABA `data.json` to `data/raw/plaba/`, then `get_data.py`, `get_plaba.py`, `make_synthetic.py`, `make_split.py`. No build/deploy step.
+Raw data and the 62 MB BodyParts3D archive are not in git; see README for download and rebuild steps. Env: `USE_TF=0` is set in code; `RUN_NLI=1` / `RUN_GPU=1` enable model-loading tests. Do not game on the GPU during runs (laptop RTX 4060, throttles near 85 C). Start long jobs detached; the demo server has exited on its own several times (cause unknown), restart if the page does not load.
 
-## 10. Conventions and quirks
-- Rules + small models, no training. Plain Python, type hints, short docstrings stating the why; tests mirror modules; model-loading tests are opt-in. Injected `entail_fn` lets tests run without models.
-- Scripts append results and are resumable (`candidates.jsonl`, `heldout_eval.jsonl`).
-- Labeling is blind: outputs are shuffled and the prompt mode hidden (`--show A B`).
-- Traps: always use `.venv` Python; close games before GPU runs; Windows console shows mojibake for some characters; do not edit the server and expect a running process to change (restart it); glossary explanations must not contain hedges, sides, severity words or numbers (a test enforces this).
+## 9. Results (all labels by Claude, blind to system and scores, not human)
+**Final evaluation, 120 unseen Open-i reports, plain LLM vs best-of-N** (`results/final_summary.md`):
+| metric | plain | best-of-N | difference (95% CI) |
+|---|---|---|---|
+| any labeled error (H/N/F) | 0.81 | 0.68 | -0.12 (-0.21 to -0.04) |
+| unsupported content (F) | 0.70 | 0.59 | -0.11 (-0.20 to -0.02) |
+| hedge error (H) | 0.20 | 0.17 | -0.03 (-0.10 to +0.05) |
+| number/side error (N) | 0.07 | 0.07 | +0.00 (-0.06 to +0.05) |
+| key finding left out (O) | 0.04 | 0.10 | +0.06 (+0.00 to +0.12) |
+| reading grade (FK, lower easier) | 10.01 | 10.59 | +0.58 (-0.07 to +1.21) |
+| simplicity score | 0.31 | 0.25 | -0.06 (-0.11 to -0.01) |
+| pass all hard checks (verifier, circular) | 0.11 | 0.23 | +0.12 (+0.07 to +0.17) |
+| verifier total (circular) | 0.73 | 0.82 | +0.09 (+0.07 to +0.11) |
+Reading: best-of-N reduces unsupported content and the overall error rate, does not significantly change hedge or number errors, **does not make text simpler** (reading grade about 10 for both), and may drop key content slightly more often. Even the selected outputs have labeled errors in 68% of cases (strict labeling; most F cases are wrong or invented glosses and reassurance). Verifier-based rows are circular for best-of-N because the verifier both selects and scores.
 
-## 11. Current state of work
-- **Done:** data prep and gate; hedge/number/side/discourse/verifier/best-of-N modules; glossary; demo; labeling package; held-out generation (40 reports x plain vs best-of-N).
-- **Findings.** Verifier separates clean from errored outputs (AUC, 0.5 = chance): 0.65 (dev, n=20), 0.79 (set 1), 0.77 (set 2, CI 0.60-0.92, fresh), 0.64 (set 3, 3B-model outputs, CI 0.46-0.81); hedge check ~chance on heavily paraphrased text. 1.5B model is faithful only when it stays close to the source (reading grade ~10-12); strong "simplify" prompts (e.g. "12-year-old") made it invent content; 3B writes grade ~5 text but fabricates in >50% of outputs. Best-of-N tends to select near-copies, hence the simplicity floor.
-- **Held-out (40 reports, verifier-scored, circular for best-of-N):** pass-all-hard-checks 0.12 -> 0.23; meaning 0.85 -> 0.91; numbers/sides 0.87 -> 0.96; certainty 0.73 -> 0.94; verifier total 0.73 -> 0.82; reading grade 10.3 -> 10.1 (no real simplification gain); word overlap with source 0.33 -> 0.44. Blind labeled error rates for these 80 outputs are **not done yet**.
-- **Known failures.** The verifier can miss meaning changes (example: "left greater than right ... scarring" rewritten as "left lung appears larger than the right lung" scored 0.96 meaning). Numbers are not bound to findings; omissions are not penalized; spelled counts without units ("Two nodules") are missed; 7 of 140 labeled outputs have number/side errors so that component is barely validated.
-- **Pending/incomplete:** teammate human labels and glossary review; comprehension-question evaluation (the paper's primary metric) not built; `train_dpo.py` not written; `pairs.jsonl` not generated (15 of 645 reports have candidates); README partly stale; slide outline not written.
+**Verifier AUC** (0.5 = chance; P(clean output scores above errored one)), before -> after the comparison, side-binding and coverage changes, total vs any error: dev 0.68 -> 0.67 (n=20), set 1 0.79 -> 0.81, set 2 0.77 -> 0.77 (fresh, CI 0.60-0.92), set 3 (3B outputs) 0.67 -> **0.55** (CI 0.34-0.77, worse), combined dev+test 0.73 -> 0.75. On the 120 *plain* final outputs (not circular): total vs any error 0.81, certainty vs H 0.69, numbers vs N 0.69, entail vs F 0.66, coverage vs O 0.75 (only 5 positives). Confidence intervals are wide; clean examples are scarce (23 of 120 plain outputs had no labeled error).
 
-## 12. Open questions and constraints
-- Does the course require actual training (DPO)? Unknown; decides whether the paused pair build/training resumes. Without training the honest claim is "verifier-guided selection with a pretrained model".
-- Do not claim a trained model, do not present synthetic reports as real, do not present AI labels as human labels. Do not change `split.json` or labeled files (evaluation integrity); keep `results/human_labeling/claude_key.csv` private until teammates finish.
-- Constraints: 8 GB VRAM (3B fp16 barely fits), slow internet, deadline first week Dec 2026.
-- Possible next steps: blind-label the 80 held-out outputs, collect human labels, flag comparison phrases ("larger than") that differ from the source, stronger/larger generator plus verifier retuned for lay text, build comprehension questions.
+Other findings: the 1.5B model is faithful mainly when it stays close to the source; strong "12-year-old" prompts made it invent content; the 3B model reads at grade ~5 but fabricates in over half its outputs. Earlier 40-report held-out run (verifier-scored only) is superseded by the final set.
+
+## 10. Known weaknesses
+Verifier: NLI is noisy on paraphrase and negation (coverage misses "pleuritis" vs "pleurisy"; entailment can pass a changed meaning); numbers are tied to a side but not to a specific finding; spelled counts without units ("Two nodules") are missed; N-type errors are rare (about 7%), so that component is barely validated; set 3 AUC fell after the latest changes. Generation: outputs are often near-copies of the source with markdown headings; glosses are frequently wrong (e.g., pneumothorax described as fluid) or add reassurance ("nothing to worry about"); the model guesses text hidden as `XXXX`. Evidence: labels are AI-assigned and strict; 80 of the 120 reports come from the train split; 50 synthetic reports excluded from results; no patient-comprehension test.
+
+## 11. Pending / next steps
+- Teammate human labels and the glossary review (labeling package in `results/human_labeling/`; user said they cannot collect these for now). Do not present AI labels as human.
+- Slide outline `results/review/SLIDES.md` not written. Final write-up needs the framing in section 1 and the caveats in section 10.
+- Optional: comprehension-question evaluation, DPO pairs (only 15 of 645 train reports have candidates), a stronger generator, fixing glossary wording errors in model output, hard coverage threshold if NLI noise is reduced.
+
+## 12. Rules and constraints
+- Do not claim a trained model, do not present synthetic reports as real, do not present AI labels as human labels. Do not change `data/split.json` or labeled files. Keep `results/human_labeling/claude_key.csv` private until teammates finish.
+- 8 GB VRAM, slow internet, deadline first week of December 2026. Never use the global Python.
+- Code conventions: plain Python 3.11, type hints, short docstrings stating the why, one test file per module, injected `entail_fn` so tests run without models. Edit files with the editor tools, not shell heredocs (escape characters get corrupted).
+- Credits: Open-i (NLM), PLABA, BodyParts3D (CC BY 4.0, credit shown on the page), three.js, GSAP.
 
 ## 13. How to help me
-You are helping with the project described above. I cannot paste the whole repo; ask for specific files or snippets (module names are in section 5). Match the existing conventions: plain Python 3.11, type hints, small functions, tests next to each module, commands run with `.venv/Scripts/python` on Windows. Give complete, working code and say which file it belongs in. Be honest about limits: if a result is weak or a claim is unsupported, say so rather than polishing it. Never suggest faking results, models or labels; suggest honest framings instead. Prefer changes that run on an 8 GB GPU and a slow connection.
+You are helping with the project above. Ask for specific files or snippets rather than assuming (module names are in section 5). Match existing conventions, give complete working code and name the file it belongs in, run commands with `.venv/Scripts/python` on Windows. Be honest about limits: if a result is weak or a claim unsupported, say so instead of polishing it. Never suggest faking results, models or labels; suggest honest framings. Prefer changes that run on an 8 GB GPU and a slow connection.

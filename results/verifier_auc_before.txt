@@ -1,0 +1,38 @@
+
+== dev (smoke run, baseline prompt): n=20, errored=13, clean=7
+  AUC total vs any error   0.68  (95% CI 0.43-0.93, positives=13)
+  AUC certainty vs H       0.62  (95% CI 0.36-0.87, positives=6)
+  AUC numbers vs N         0.54  (95% CI 0.19-0.94, positives=4)
+  AUC entail vs F          0.73  (95% CI 0.45-0.96, positives=12)
+
+== test (held-out at first scoring): n=40, errored=33, clean=7
+  AUC total vs any error   0.79  (95% CI 0.49-1.00, positives=33)
+  AUC certainty vs H       0.71  (95% CI 0.55-0.87, positives=18)
+  AUC numbers vs N         1.00  (95% CI 1.00-1.00, positives=1)
+  AUC entail vs F          0.80  (95% CI 0.65-0.92, positives=27)
+
+== dev+test combined: n=60, errored=46, clean=14
+  AUC total vs any error   0.73  (95% CI 0.52-0.90, positives=46)
+  AUC certainty vs H       0.68  (95% CI 0.54-0.81, positives=24)
+  AUC numbers vs N         0.73  (95% CI 0.41-0.98, positives=5)
+  AUC entail vs F          0.77  (95% CI 0.63-0.89, positives=39)
+
+== fresh set 2 (labeled blind, never used for tuning): n=40, errored=26, clean=14
+  AUC total vs any error   0.77  (95% CI 0.60-0.92, positives=26)
+  AUC certainty vs H       0.78  (95% CI 0.63-0.91, positives=11)
+  AUC numbers vs N         0.38  (95% CI 0.32-0.45, positives=1)
+  AUC entail vs F          0.76  (95% CI 0.58-0.91, positives=23)
+
+== set 3 (Qwen2.5-3B outputs, labeled blind, not used for tuning): n=40, errored=30, clean=10
+  AUC total vs any error   0.67  (95% CI 0.48-0.84, positives=30)
+  AUC certainty vs H       0.51  (95% CI 0.33-0.70, positives=12)
+  AUC numbers vs N         0.35  (95% CI 0.28-0.42, positives=1)
+  AUC entail vs F          0.61  (95% CI 0.40-0.80, positives=26)
+
+== prompt mode on test (same 20 reports each; labels, then verifier total)
+  set 1 (old prompt)   baseline       n=20  H=0.40 N=0.00 F=0.50  mean total=0.719
+  set 1 (old prompt)   structured     n=20  H=0.50 N=0.05 F=0.85  mean total=0.717
+  set 2 (new prompt)   structured     n=20  H=0.30 N=0.00 F=0.50  mean total=0.721
+  set 2 (new prompt)   baseline       n=20  H=0.25 N=0.05 F=0.65  mean total=0.700
+  set 3 (3B)           3b_old_rules   n=20  H=0.30 N=0.00 F=0.55  mean total=0.658
+  set 3 (3B)           3b_mild_rules  n=20  H=0.30 N=0.05 F=0.75  mean total=0.576

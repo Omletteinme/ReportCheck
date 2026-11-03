@@ -64,3 +64,39 @@ def test_right_and_left_idioms_are_not_sides():
     assert sides("Fluid on the right.") == {"right"}
     assert sides("A nodule in the right lower lobe, right now stable.") == {"right"}
     assert compare("Effusion on the left.", "You have no serious problems right now. Fluid on the left.")["score"] == 1.0
+
+
+def test_comparison_direction_is_normalised():
+    from src.numbers import comparisons
+
+    a = comparisons("Scarring, left greater than right.")[0]
+    b = comparisons("Scarring, right less than left.")[0]
+    assert (a["bigger"], a["smaller"]) == (b["bigger"], b["smaller"]) == ("left", "right")
+    assert comparisons("No nodule larger than 5 mm. Less than 1 cm.") == []  # a measurement limit is not a comparison
+
+
+def test_added_or_reversed_comparison_is_penalised():
+    from src.numbers import wrong_comparisons
+
+    src = "Chronic appearing left greater than right lung base scarring."
+    # the known miss: scarring severity became lung size
+    assert wrong_comparisons(src, "The left lung looks larger than the right.") == ["larger"]
+    assert compare(src, "The left lung looks larger than the right.")["score"] < 1
+    assert wrong_comparisons(src, "The scarring is worse on the right than the left.") == ["worse"]
+    assert wrong_comparisons(src, "The scarring is worse on the left than the right.") == []
+    assert wrong_comparisons("No change.", "Everything looks better than before.") == ["better"]
+    assert wrong_comparisons("Heart is larger than before.", "The heart is bigger than on the last scan.") == []
+
+
+def test_comparison_inside_a_gloss_is_ignored():
+    assert compare("Hyperinflation.", "Hyperinflation (lungs holding more air than usual).")["score"] == 1.0
+
+
+def test_number_attached_to_the_other_side_is_penalised():
+    from src.numbers import misbound_numbers
+
+    src = "A 6 mm nodule in the right lower lobe. The left lung is clear."
+    assert misbound_numbers(src, "A 6 mm spot in your left lung.") == [(6.0, "mm")]
+    assert misbound_numbers(src, "A 6 mm spot in your right lung.") == []
+    assert misbound_numbers(src, "A 6 mm spot was seen.") == []          # no side stated: nothing to contradict
+    assert compare(src, "A 6 mm spot in your left lung.")["score"] < 1

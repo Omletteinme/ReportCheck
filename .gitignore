@@ -16,3 +16,6 @@ results/_archive/
 
 # local scratch
 *.log
+
+# exception: the 202 blind labels for the final evaluation (AI-assigned, disclosed as such; not on teammates' sheets)
+!results/final_eval_labels.csv

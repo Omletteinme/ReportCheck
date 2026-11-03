@@ -1,9 +1,11 @@
 """Fact extraction and source-vs-output comparison: numbers, laterality, severity qualifiers.
 
-Limitation: facts are matched as sets/multisets, not bound to the finding they belong to, so a
-correct number or side attached to the wrong finding is not caught here.
+Limitation: numbers are matched as multisets and only bound to a *side* (a number moved from a right-sided
+sentence to a left-sided one is caught), not to the finding they belong to.
 """
 import re
+
+from .text import split_sentences
 
 _WORDS = {w: i for i, w in enumerate(
     "zero one two three four five six seven eight nine ten eleven twelve".split())}
@@ -109,10 +111,81 @@ def qualifier_groups(text: str) -> set[str]:
     return {group for _, group in qualifier_words(text)}
 
 
-def compare(source: str, output: str) -> dict:
-    """missing/unsupported numbers, plus unsupported sides and severity groups; score in [0, 1].
+# "left greater than right", "larger than before". Direction is normalised so "right less than left" and
+# "left greater than right" give the same (bigger, smaller) side pair. "more than 5 mm" is not a comparison.
+_COMPARATORS = {
+    "degree": {"greater": 1, "more": 1, "higher": 1, "worse": 1, "less": -1, "lower": -1, "better": -1},
+    "size": {"larger": 1, "bigger": 1, "wider": 1, "smaller": -1, "narrower": -1},
+}
+_COMPARATOR_GROUP = {w: g for g, ws in _COMPARATORS.items() for w in ws}
+_COMPARISON = re.compile(
+    r"\b(?P<word>" + "|".join(_COMPARATOR_GROUP) + r")\b(?P<mid>[^.;,]{0,25}?)\bthan\b(?P<after>(?!\s*(?:\d|" + _WORD_PAT + r")\b)[^.;,]{0,40})",
+    re.I,
+)
 
-    score = number F1 - 0.25 per unsupported side - 0.125 per missing side - 0.25 per unsupported severity group.
+
+def _last_side(text: str) -> str | None:
+    found = [w for w in re.findall(r"[a-z]+", text.lower()) if w in ("left", "right")]
+    return found[-1] if found else None
+
+
+def comparisons(text: str) -> list[dict]:
+    """Comparative phrases ("left greater than right"): {word, group, bigger, smaller}; sides are None if unstated.
+
+    Parenthetical glosses are skipped ("(lungs holding more air than usual)" only names a term, like in Verifier.support)."""
+    out = []
+    for sentence in split_sentences(re.sub(r"\s*\([^)]*\)", "", text)):
+        for m in _COMPARISON.finditer(sentence):
+            word = m["word"].lower()
+            group = _COMPARATOR_GROUP[word]
+            first = _last_side(sentence[max(0, m.start() - 40):m.start()] + " " + m["mid"])
+            after = re.findall(r"[a-z]+", m["after"].lower())
+            second = next((w for w in after if w in ("left", "right")), None)
+            if first and second and first != second:
+                bigger, smaller = (first, second) if _COMPARATORS[group][word] > 0 else (second, first)
+            else:
+                bigger = smaller = None
+            out.append({"word": word, "group": group, "bigger": bigger, "smaller": smaller})
+    return out
+
+
+def wrong_comparisons(source: str, output: str) -> list[str]:
+    """Comparator words in the output that the source does not support: a comparison of a kind the source never
+    makes (the source says 'left greater than right' scarring, the output says 'left lung larger than right'),
+    or the same comparison with the sides reversed."""
+    src = comparisons(source)
+    groups = {c["group"] for c in src}
+    pairs = {(c["bigger"], c["smaller"]) for c in src if c["bigger"]}
+    bad = []
+    for c in comparisons(output):
+        reversed_sides = c["bigger"] and (c["smaller"], c["bigger"]) in pairs and (c["bigger"], c["smaller"]) not in pairs
+        if c["group"] not in groups or reversed_sides:
+            bad.append(c["word"])
+    return bad
+
+
+def misbound_numbers(source: str, output: str) -> list[Fact]:
+    """Numbers (with a unit) whose output sentence names a side, while every source sentence stating that number
+    names only the other side: '6 mm nodule, right lower lobe' became '6 mm spot in the left lung'."""
+    src_sentences = [(extract_source(s), sides(s)) for s in split_sentences(source)]
+    bad = []
+    for sentence in split_sentences(output):
+        out_sides = sides(sentence)
+        if not out_sides:
+            continue
+        for fact in extract(sentence):
+            homes = [sd for facts, sd in src_sentences if any(_matches(fact, f) for f in facts)]
+            if homes and all(sd and not sd & out_sides for sd in homes):
+                bad.append(fact)
+    return bad
+
+
+def compare(source: str, output: str) -> dict:
+    """missing/unsupported numbers, plus unsupported sides, severity groups, comparisons and number-side
+    mismatches; score in [0, 1].
+
+    score = number F1 - 0.25 per unsupported side - 0.125 per missing side - 0.25 per unsupported severity group
+            - 0.25 per unsupported comparison - 0.25 per number attached to the wrong side.
     """
     src, out = extract_source(source), extract(output)
     src_units = [f for f in src if f[1] is not None]
@@ -124,6 +197,8 @@ def compare(source: str, output: str) -> dict:
     src_sides, out_sides = sides(source), sides(output)
     wrong_sides, missing_sides = out_sides - src_sides, (src_sides - out_sides) if out_sides else set()
     wrong_quals = qualifier_groups(output) - qualifier_groups(source)
-    score = max(0.0, score - 0.25 * len(wrong_sides) - 0.125 * len(missing_sides) - 0.25 * len(wrong_quals))
+    wrong_cmp, misbound = wrong_comparisons(source, output), misbound_numbers(source, output)
+    score = max(0.0, score - 0.25 * len(wrong_sides) - 0.125 * len(missing_sides) - 0.25 * len(wrong_quals)
+                - 0.25 * len(wrong_cmp) - 0.25 * len(misbound))
     return {"missing": missing, "unsupported": unsupported, "wrong_sides": wrong_sides,
-            "wrong_qualifiers": wrong_quals, "score": score}
+            "wrong_qualifiers": wrong_quals, "wrong_comparisons": wrong_cmp, "misbound": misbound, "score": score}

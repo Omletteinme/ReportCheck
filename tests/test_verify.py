@@ -130,3 +130,47 @@ def test_explain_flags_unsupported_sentence():
     v = Verifier(entail_fn=lambda p, hs: [0.1 if "tumor" in h else 0.9 for h in hs])
     e = v.explain("The lungs are clear.", "Your lungs are clear. There is a tumor.")
     assert kinds(e, 0) == {} and kinds(e, 1) == {"unsupported": []}
+
+
+def word_overlap_entail(premise, hypotheses):
+    have = set(premise.lower().replace(".", "").replace(",", "").split())
+    return [1.0 if set(h.lower().replace(".", "").replace(",", "").split()) <= have else 0.0 for h in hypotheses]
+
+
+def test_key_sentences_skip_plain_normals():
+    from src.verify import key_sentences
+
+    src = ("FINDINGS: The heart size is normal. No pleural effusion. A 6 mm nodule in the right lower lobe. "
+           "The lungs are clear. IMPRESSION: Right lower lobe nodule, possibly infectious. No acute disease. "
+           "Recommend follow-up CT in 3 months.")
+    assert key_sentences(src) == ["A 6 mm nodule in the right lower lobe.",
+                                  "Right lower lobe nodule, possibly infectious.",
+                                  "Recommend follow-up CT in 3 months."]
+
+
+def test_coverage_drops_when_the_impression_or_recommendation_is_left_out():
+    v = Verifier(entail_fn=word_overlap_entail)
+    full = "The right lower lobe nodule, possibly infectious. Recommend follow-up CT in 3 months."
+    src = "FINDINGS: Nodule. IMPRESSION: Right lower lobe nodule, possibly infectious. Recommend follow-up CT in 3 months."
+    assert v.score(src, full).coverage == 1.0
+    partial = v.score(src, "The right lower lobe nodule, possibly infectious.")
+    assert partial.coverage == 0.5 and partial.total < v.score(src, full).total
+    assert [k for k, p in v.coverage(src, "The right lower lobe nodule, possibly infectious.") if p == 0] == [
+        "Recommend follow-up CT in 3 months."]
+
+
+def test_source_without_key_sentences_has_full_coverage_and_explain_lists_omissions():
+    v = Verifier(entail_fn=word_overlap_entail)
+    assert v.score("FINDINGS: The lungs are clear. IMPRESSION: No acute disease.", "Your lungs look fine.").coverage == 1.0
+    out = v.explain("IMPRESSION: Right lower lobe nodule. Recommend CT in 3 months.", "A nodule was seen.")
+    assert out["summary"]["possibly_omitted"] == ["Right lower lobe nodule.", "Recommend CT in 3 months."]
+    assert out["score"]["coverage"] == 0.0
+
+
+def test_explain_flags_new_checks():
+    v = Verifier(entail_fn=always_entailed)
+    kinds = lambda e: {f["kind"] for s in e["sentences"] for f in s["flags"]}  # noqa: E731
+    e = v.explain("A 6 mm nodule in the right lower lobe. Scarring left greater than right.",
+                  "A 6 mm spot in the left lung. The left lung is larger than the right.")
+    assert {"number on wrong side", "added comparison"} <= kinds(e)
+    assert e["summary"]["misplaced_numbers"] == ["6 mm"] and e["summary"]["wrong_comparisons"] == ["larger"]

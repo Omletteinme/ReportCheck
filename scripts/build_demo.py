@@ -1,4 +1,4 @@
-"""Build demo/examples.json from results/heldout_eval.jsonl (plain LLM vs best-of-N on held-out reports).
+"""Build demo/examples.json from results/final_eval.jsonl (plain LLM vs best-of-N on 120 unseen reports).
 
 Picks up to 8 reports to show different cases; the selection is by rule, not by cherry-picking favourable
 results: biggest verifier gain, a number case, a restored hedge, a left/right case, a case where the checker
@@ -14,7 +14,7 @@ from src import numbers  # noqa: E402
 from src.glossary import annotate  # noqa: E402
 from src.verify import Verifier  # noqa: E402
 
-SRC = ROOT / "results" / "heldout_eval.jsonl"
+SRC = ROOT / "results" / "final_eval.jsonl"
 OUT = ROOT / "demo" / "examples.json"
 NOTE = ("Examples were chosen by fixed rules to show different cases, not to be representative. "
         "The held-out table at the bottom of the page is the fair comparison.")

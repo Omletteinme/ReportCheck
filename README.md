@@ -1,6 +1,8 @@
 # Clinical Report Simplification (NLP project)
 
 Discourse-anchored, verifier-guided simplification of radiology reports.
+
+**Full project context (what it is, how it works, results, limits) is in [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md). This file lists setup and run commands.**
 See the IEEE review paper for motivation (Gaps 1-4).
 
 ## Layout
