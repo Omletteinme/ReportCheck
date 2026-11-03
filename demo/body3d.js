@@ -4,7 +4,6 @@
 //   const viewer = await createBodyViewer(containerEl, { onSelect(regionId) {}, onFail(reason) {} });
 //   viewer.setMarkers([{ id, status: "finding"|"uncertain"|"normal", count, label, aria }]);
 //   viewer.focus(regionId | null);      // camera glide + organ highlight (null = back to overview)
-//   viewer.setBusy(true | false);       // pauses idle motion while the model is generating text
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -62,7 +61,8 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
   const rim = new THREE.DirectionalLight(0x9cc2ff, 1.4); rim.position.set(-2, 1, -2.5); scene.add(rim);
   const camera = new THREE.PerspectiveCamera(FOV, 1, 0.05, 20);
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = false;
+  renderer.domElement.style.touchAction = "pan-y pinch-zoom";   // OrbitControls sets "none", which traps page scroll on phones
+  controls.enableDamping = !reduceMotion(); controls.dampingFactor = 0.08; controls.enablePan = false;
   // wheel zoom must not trap page scroll: zoom only while the pointer is pressed or Ctrl/Meta is held
   controls.enableZoom = false;
   let pressed = false, modKey = false;
@@ -175,8 +175,10 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
       }
     }
   }
+  let markerSig = "";
   function setMarkers(items) {
     pinLayer.innerHTML = ""; markers = new Map();
+    const sigParts = [];
     // tab order follows the picture: top of the body first
     const ordered = [...items].sort((a, b) => ((anatomy.regions[b.id]?.anchor[1] ?? 0) - (anatomy.regions[a.id]?.anchor[1] ?? 0)));
     for (const it of ordered) {
@@ -191,9 +193,12 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
         (it.count > 1 ? `<span class="mk-count" aria-hidden="true">${it.count}</span>` : "");
       el.onclick = () => onSelect(it.id);
       pinLayer.append(el);
+      sigParts.push(it.id + ":" + it.status);
       markers.set(it.id, { el, anchor: reg.anchor, labelLen: it.label.replace(/&[a-z#0-9]+;/g, "x").length + (it.count > 1 ? 3 : 0) });
     }
-    if (window.gsap && !reduceMotion()) gsap.fromTo(pinLayer.querySelectorAll(".mk-dot"), { scale: 0.3, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, stagger: 0.04, ease: "back.out(2)", overwrite: true, clearProps: "scale,opacity" });
+    const sig = sigParts.join("|"), changed = sig !== markerSig;   // same pins as before: no replay
+    markerSig = sig;
+    if (changed && window.gsap && !reduceMotion()) gsap.fromTo(pinLayer.querySelectorAll(".mk-dot"), { scale: 0.3, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, stagger: { amount: 0.3 }, ease: "back.out(1.2)", overwrite: true, clearProps: "scale,opacity" });
     wake();
   }
 
@@ -218,7 +223,10 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
       if (window.gsap && !reduceMotion()) gsap.to(m, { ...to, duration: 0.5, ease: "power2.out", overwrite: "auto", onUpdate: () => wake(600) });
       else Object.assign(m, to);
     }
-    if (skin && window.gsap) gsap.to(skin.uniforms.uOpacity, { value: on ? 0.35 : 1, duration: 0.5, overwrite: "auto", onUpdate: () => wake(600) });
+    if (skin) {
+      if (window.gsap && !reduceMotion()) gsap.to(skin.uniforms.uOpacity, { value: on ? 0.35 : 1, duration: 0.5, overwrite: "auto", onUpdate: () => wake(600) });
+      else skin.uniforms.uOpacity.value = on ? 0.35 : 1;
+    }
     wake(900);
   }
   function glideTo(end) {
@@ -276,9 +284,9 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
     gsap.from(gltf.scene.position, { y: -0.04, duration: 1.0, ease: "power2.out" });
     if (skin) gsap.from(skin.uniforms.uOpacity, { value: 0, duration: 1.2, ease: "power1.out", onUpdate: () => wake(400) });
     // reveal: swing in from the patient's right and settle on the front view
-    const k = { v: 0 }, swing = 0.9;
+    const k = { v: 0 }, swing = 0.5;
     state.az = baseSph.az - swing; applyState();
-    tween = gsap.to(k, { v: 1, duration: 2.2, ease: "power3.out",
+    tween = gsap.to(k, { v: 1, duration: 1.4, ease: "power3.out",
       onUpdate: () => { state.az = baseSph.az - swing * (1 - k.v); applyState(); wake(600); },
       onComplete: () => { tween = null; wake(900); } });
   }

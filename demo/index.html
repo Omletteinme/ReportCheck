@@ -228,7 +228,16 @@
   .bars { margin-top: var(--sp-3); border-top: 1px solid var(--line); padding-top: var(--sp-3); }
   .bar { display: grid; grid-template-columns: 140px 1fr 40px; gap: var(--sp-2); align-items: center; font-size: var(--fs-sm); margin: var(--sp-1) 0; }
   .bar .track { background: var(--card-2); border-radius: var(--r-xs); height: 8px; overflow: hidden; }
-  .bar .fill { height: 100%; border-radius: var(--r-xs); }
+  .bar .fill { display: block; width: 100%; height: 100%; border-radius: var(--r-xs); transform: translateX(calc((var(--v, 1) - 1) * 100%)); }
+  #runbar { height: 2px; margin-top: var(--sp-2); background: var(--accent); border-radius: 1px; transform: scaleX(0); transform-origin: 0 50%; opacity: 0; }
+  .chart-svg .sbar { transform-box: fill-box; transform-origin: 50% 100%; }
+  @media (prefers-reduced-motion: no-preference) {
+    .cta, .ghost, .chip, .seg-b, .rchip, .pill { transition: transform 100ms ease-out; }
+    .cta:active:not([aria-disabled="true"]):not(:disabled), .ghost:active:not([aria-disabled="true"]):not(:disabled), .chip:active:not([aria-disabled="true"]):not(:disabled),
+    .seg-b:active:not([aria-disabled="true"]):not(:disabled), .rchip:active:not([aria-disabled="true"]):not(:disabled), .pill:active:not([aria-disabled="true"]):not(:disabled) { transform: scale(.97); }
+    .cta-ico svg { transition: transform 150ms ease-out; }
+    .cta:hover .cta-ico svg { transform: translate(2px, -2px); }
+  }
   .bar.total { font-weight: 600; font-size: var(--fs-base); }
   .issues { margin: var(--sp-3) 0 0; padding-left: var(--sp-4); font-size: var(--fs-sm); }
   .issues li { margin: 2px 0; }
@@ -301,6 +310,7 @@
           <button class="cta" id="quick" type="button"><span>Quick check <small>about 30 s</small></span><span class="cta-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></span></button>
           <button class="ghost" id="best" type="button">Best of 8 <small>about 2-3 min</small></button>
         </div>
+        <div id="runbar" aria-hidden="true"></div>
         <div class="row">
           <label class="toggle"><input type="checkbox" id="glossToggle" checked> Explain medical terms</label>
           <span id="status" role="status" aria-live="polite"></span><span id="tick" aria-hidden="true"></span>
@@ -587,7 +597,7 @@ function renderCaption() {
   const r = regions.get(active);
   el.innerHTML = `<strong>${esc(SPOTS[active][3])}</strong>` + r.items.map((i) => `<span class="cap-s ${findings[i].status}">${findingText(findings[i])}</span>`).join("");
 }
-function setActive(id) {
+function setActive(id, quiet) {
   active = active === id ? null : id;
   viewer?.focus(active);
   $("figure").querySelectorAll(".mk").forEach((m) => m.setAttribute("aria-pressed", String(m.dataset.r === active)));
@@ -595,6 +605,7 @@ function setActive(id) {
   document.querySelectorAll(".find").forEach((li) => li.classList.toggle("on", on.has(+li.dataset.i)));
   document.querySelectorAll(".rchip").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.r === active)));
   renderCaption();
+  if (!quiet && canAnim() && $("caption").children.length) gsap.fromTo($("caption").children, { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.2, ease: "power1.out", overwrite: true, clearProps: "opacity,transform" });
 }
 function renderFindings() {
   $("findlist").innerHTML = findings.map((f) => {
@@ -629,7 +640,7 @@ function chartSvg(sents) {
     const v = Math.max(0, Math.min(1, s.support)), h = 6 + v * 74, x = 8 + i * step + (step - bw) / 2;
     const bad = s.flags.some((f) => f.kind === "unsupported");
     const fill = bad ? "var(--bad)" : v < 0.75 ? "var(--warn)" : "var(--bar-strong)";
-    return `<rect x="${x.toFixed(1)}" y="${(88 - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="${Math.min(6, bw / 2)}" fill="${fill}"/>` +
+    return `<rect class="sbar" x="${x.toFixed(1)}" y="${(88 - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="${Math.min(6, bw / 2)}" fill="${fill}"/>` +
       (n <= 12 ? `<text x="${(x + bw / 2).toFixed(1)}" y="104" text-anchor="middle" font-size="11" fill="var(--muted)">${i + 1}</text>` : "");
   }).join("");
   const label = "Support from the report for each sentence of the checked draft: " + sents.map((s, i) => `${i + 1}: ${Math.round(s.support * 100)}%`).join(", ");
@@ -669,7 +680,7 @@ function issues(summary) {
 function bars(score) {
   return `<div class="bars">${BARS.map(([k, label, tip]) => {
     const v = Math.max(0, Math.min(1, score[k]));
-    return `<div class="bar ${k === "total" ? "total" : ""}" title="${esc(tip)}"><span>${label}<span class="sr-only">: ${esc(tip)}</span></span><span class="track"><span class="fill" style="width:${v * 100}%;background:${scoreColor(v)}"></span></span><span>${v.toFixed(2)}</span></div>`;
+    return `<div class="bar ${k === "total" ? "total" : ""}" title="${esc(tip)}"><span>${label}<span class="sr-only">: ${esc(tip)}</span></span><span class="track"><span class="fill" style="--v:${v};background:${scoreColor(v)}"></span></span><span>${v.toFixed(2)}</span></div>`;
   }).join("")}</div>`;
 }
 const GLOSS_TIP = "Plain explanation from our fixed glossary, not written by the AI";
@@ -688,12 +699,28 @@ function outputColumn(title, tag, item) {
   }).join("");
   return `<div class="col"><h3>${title}</h3><p class="tagline">${tag}</p>${sents}${bars(ex.score)}${issues(ex.summary)}</div>`;
 }
+/* ---------- motion (all of it instant under prefers-reduced-motion) ---------- */
+const reduce = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const canAnim = () => !!window.gsap && !reduce();
+let swapCtx = null;
+function swapIn() {
+  swapCtx = gsap.context(() => {
+    const enter = (sel, stagger) => { const t = document.querySelectorAll(sel); if (t.length) gsap.from(t, { opacity: 0, y: 8, duration: 0.3, ease: "power2.out", stagger, clearProps: "opacity,transform" }); };
+    enter("#grid .col", 0.06); enter("#stats .stat", { amount: 0.25 }); enter("#findlist .find", { amount: 0.25 }); enter("#verdict", 0);
+    const fills = document.querySelectorAll("#grid .bar .fill");
+    if (fills.length) gsap.fromTo(fills, { xPercent: -100, x: 0 }, { xPercent: (i, el) => -(1 - +el.style.getPropertyValue("--v")) * 100, x: 0, duration: 0.6, ease: "power2.out", stagger: 0.04, clearProps: "transform" });
+    const sb = document.querySelectorAll("#stats .sbar");
+    if (sb.length) gsap.from(sb, { scaleY: 0, transformOrigin: "50% 100%", duration: 0.45, ease: "power2.out", stagger: { amount: 0.25 }, clearProps: "transform" });
+  });
+}
 let current = null;
 function render(ex) {
   const keep = current === ex ? active : null;   // glossary toggle re-renders the same report: keep the selection
+  const changed = current !== ex;                // entrance only when a different report is shown
+  if (swapCtx) { swapCtx.revert(); swapCtx = null; }
   current = ex;
   analyse(ex); renderMarkers(); renderFindings(); renderStats(ex);
-  if (keep && regions.has(keep)) setActive(keep); else renderCaption();
+  if (keep && regions.has(keep)) setActive(keep, true); else renderCaption();
   $("grid").innerHTML = sourceColumn(ex) +
     outputColumn("Plain draft", "One draft, no checking", ex.plain) +
     outputColumn("Checked draft", ex.n_candidates ? `Best of ${ex.n_candidates} drafts, picked by the checker` : "Picked by the checker", ex.selected);
@@ -702,6 +729,7 @@ function render(ex) {
   $("verdict").hidden = false;
   $("verdict").textContent = same ? "The checker kept the plain draft here (no better candidate found)." :
     `The checker's overall score: plain draft ${a.toFixed(2)}, checked draft ${b.toFixed(2)}.` + (ex.acceptable ? "" : " No draft passed all hard checks, so the top-scoring one is shown.");
+  if (changed && canAnim()) swapIn();
 }
 
 let examples = [];
@@ -712,6 +740,33 @@ function pick(i) {
 }
 let running = false;
 const setBusy = (on) => ["grid", "stats", "findings"].forEach((id) => (on ? $(id).setAttribute("aria-busy", "true") : $(id).removeAttribute("aria-busy")));
+const RESULT_IDS = ["grid", "stats", "findings"];
+function dimResults(on, instant) {
+  const els = RESULT_IDS.map($);
+  if (window.gsap) gsap.killTweensOf(els);
+  if (!canAnim() || instant) { els.forEach((e) => (e.style.opacity = on ? "0.5" : "")); return; }
+  gsap.to(els, { opacity: on ? 0.5 : 1, duration: 0.2, ease: "power1.out", clearProps: on ? "" : "opacity" });
+}
+let creep = null, finishTl = null;
+function progressKill(reset) {
+  if (creep) { creep.kill(); creep = null; }
+  if (reset && window.gsap) { if (finishTl) { finishTl.kill(); finishTl = null; } gsap.set($("runbar"), { scaleX: 0, opacity: 0 }); }
+}
+function progressStart(mode) {
+  progressKill(true);
+  if (!canAnim()) return;
+  const bar = $("runbar");
+  gsap.set(bar, { scaleX: 0, opacity: 1 });
+  creep = gsap.to(bar, { scaleX: 0.9, duration: mode === "best" ? 150 : 30, ease: "power1.out" });
+}
+function progressFinish(ok) {
+  const bar = $("runbar");
+  progressKill();
+  if (!canAnim()) return;
+  finishTl = gsap.timeline({ onComplete: () => { gsap.set(bar, { scaleX: 0 }); finishTl = null; } });
+  if (ok) finishTl.to(bar, { scaleX: 1, duration: 0.2, ease: "power1.out" });
+  finishTl.to(bar, { opacity: 0, duration: 0.2, ease: "power1.out" });
+}
 function say(msg, err) { $("status").textContent = msg; $("status").classList.toggle("err", !!err); }
 async function live(mode) {
   if (running) return;
@@ -723,7 +778,7 @@ async function live(mode) {
   }
   $("report").removeAttribute("aria-invalid");
   document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
-  running = true; setBusy(true);
+  running = true; setBusy(true); dimResults(true); progressStart(mode);
   $("quick").setAttribute("aria-disabled", "true"); $("best").setAttribute("aria-disabled", "true");
   const t0 = Date.now(); let cold = true;
   say("Working…");
@@ -733,9 +788,10 @@ async function live(mode) {
     const data = await res.json().catch(() => null); cold = false;
     if (!res.ok) throw new Error(res.status === 409 ? "Another check is running. Try again in a minute." : (data && data.error) || res.statusText || "Request failed");
     if (!data) throw new Error("The server sent an unreadable answer.");
+    dimResults(false, true); progressFinish(true);
     render(data); say(`Done in ${Math.round((Date.now() - t0) / 1000)} s.`);
-  } catch (e) { say("Failed: " + e.message, true); }
-  finally { clearInterval(timer); $("tick").textContent = ""; running = false; setBusy(false); $("quick").removeAttribute("aria-disabled"); $("best").removeAttribute("aria-disabled"); }
+  } catch (e) { say("Failed: " + e.message, true); progressFinish(false); }
+  finally { clearInterval(timer); $("tick").textContent = ""; running = false; setBusy(false); dimResults(false); progressKill(); $("quick").removeAttribute("aria-disabled"); $("best").removeAttribute("aria-disabled"); }
 }
 function tableFrom(md) {
   const rows = md.split("\n").filter((l) => l.startsWith("|") && !/^\|[-| ]+\|$/.test(l)).map((l) => l.split("|").slice(1, -1).map((c) => c.trim()));
