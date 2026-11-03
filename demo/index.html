@@ -4,13 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Report Check</title>
-<meta name="theme-color" content="#e9edf2" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0e1116" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#e9edf2">
 <script type="importmap">{"imports":{"three":"/vendor/three/build/three.module.min.js","three/addons/":"/vendor/three/examples/jsm/"}}</script>
 <script src="/vendor/gsap/gsap.min.js"></script>
 <style>
   :root {
-    color-scheme: light dark;
+    color-scheme: light;
     --page: #e9edf2; --frame: #f3f5f8; --frame-line: #e1e6ed;
     --card: #fcfcfd; --card-2: #f1f3f7; --ink: #14171f; --on-ink: #fcfcfd;
     --muted: #596173; --line: #e1e5ec; --line-strong: #8a93a3;
@@ -26,22 +25,6 @@
     --r-xs: 4px; --r-md: 12px; --r-lg: 20px; --r-pill: 999px;
     --shadow: 0 1px 2px rgb(40 52 72 / .06), 0 4px 12px rgb(40 52 72 / .05);
     --shadow-2: 0 4px 14px rgb(40 52 72 / .14);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --page: #0e1116; --frame: #141922; --frame-line: #222a36;
-      --card: #1b222d; --card-2: #232c39; --ink: #e8ecf2; --on-ink: #10141b;
-      --muted: #9ea8b8; --line: #2b3442; --line-strong: #5d6879;
-      --accent: #8fb0ff; --on-accent: #0f1218;
-      --good: #5cc48b; --warn: #e3b25a; --bad: #ff8a7a;
-      --lvl-likely: #ffcf70;
-      --flag-bg: #4a2420;
-      --lvl-unlikely: var(--muted);
-      --mk-finding: #ff7a45; --mk-uncertain: #f0b429; --mk-normal: #8a96a8;
-      --bar: #354050; --bar-strong: #6b7385;
-      --shadow: 0 0 0 1px var(--frame-line);
-      --shadow-2: 0 4px 14px rgb(0 0 0 / .45);
-    }
   }
   .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
   * { box-sizing: border-box; }
