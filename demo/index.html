@@ -16,7 +16,7 @@
     --muted: #596173; --line: #e1e5ec; --line-strong: #8a93a3;
     --accent: #2453c4; --on-accent: #fcfcfd; --focus: var(--accent);
     --good: #1a7a43; --warn: #8f5f00; --bad: #c0392b;
-    --lvl-unlikely: var(--muted); --lvl-possible: var(--warn); --lvl-likely: #6b4a00;
+    --lvl-unlikely: #5d6b80; --lvl-possible: var(--warn); --lvl-likely: #6b4a00;
     --flag-bg: #fbe4e0;
     --mk-finding: #c2410c; --mk-uncertain: #e0a100; --mk-uncertain-ink: #2b2000; --mk-normal: #687487;
     --bar: #d9dde5; --bar-strong: #8a93a3;
@@ -36,12 +36,14 @@
       --good: #5cc48b; --warn: #e3b25a; --bad: #ff8a7a;
       --lvl-likely: #ffcf70;
       --flag-bg: #4a2420;
+      --lvl-unlikely: var(--muted);
       --mk-finding: #ff7a45; --mk-uncertain: #f0b429; --mk-normal: #8a96a8;
       --bar: #354050; --bar-strong: #6b7385;
       --shadow: 0 0 0 1px var(--frame-line);
       --shadow-2: 0 4px 14px rgb(0 0 0 / .45);
     }
   }
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
@@ -81,23 +83,26 @@
   textarea { width: 100%; min-height: 112px; border: 1px solid var(--line-strong); border-radius: var(--r-md); padding: var(--sp-3) var(--sp-4); background: var(--card-2); color: var(--ink); font: inherit; font-size: var(--fs-base); resize: vertical; }
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; margin-top: var(--sp-3); }
   .cta { display: inline-flex; align-items: center; justify-content: space-between; gap: var(--sp-4); flex: 1 1 232px; min-height: 52px; padding: 0 var(--sp-2) 0 var(--sp-5); border: 0; border-radius: var(--r-pill); background: var(--accent); color: var(--on-accent); font: inherit; font-weight: 500; cursor: pointer; }
+  .cta:hover { background: color-mix(in srgb, var(--accent) 86%, var(--ink)); }
   .cta small { font-weight: 400; opacity: .85; margin-left: var(--sp-1); }
   .cta-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--on-accent); color: var(--accent); }
   .cta-ico svg { width: 16px; height: 16px; }
   .ghost { min-height: 52px; padding: 0 var(--sp-5); border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: transparent; color: var(--ink); font: inherit; font-weight: 500; cursor: pointer; flex: 1 1 152px; }
   .ghost small { font-weight: 400; color: var(--muted); margin-left: var(--sp-1); }
   .ghost:hover { background: var(--card-2); }
-  button:disabled { opacity: .55; cursor: wait; }
+  button:disabled, button[aria-disabled="true"] { opacity: .55; cursor: wait; }
   .toggle { font-size: var(--fs-base); display: inline-flex; gap: var(--sp-2); align-items: center; cursor: pointer; min-height: 32px; }
   .toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
-  #status { color: var(--muted); font-size: var(--fs-sm); }
+  #status, #tick { color: var(--muted); font-size: var(--fs-sm); }
+  #status.err { color: var(--bad); }
+  textarea[aria-invalid="true"] { border-color: var(--bad); }
   .note { color: var(--muted); font-size: var(--fs-sm); margin-top: var(--sp-3); }
 
   /* body map */
   .map { container: map / inline-size; text-align: center; }
   .map h2 { font-size: var(--fs-base); font-weight: 600; }
   .map .hint { color: var(--muted); font-size: var(--fs-sm); margin-top: var(--sp-1); }
-  .figure { --fh: clamp(460px, 72vh, 700px); container: fig / inline-size; position: relative; width: min(100%, calc(var(--fh) * .3947)); aspect-ratio: 300 / 760; margin: var(--sp-4) auto 0; }
+  .figure { --fh: clamp(320px, 72vh, 700px); container: fig / inline-size; position: relative; width: min(100%, calc(var(--fh) * .3947)); aspect-ratio: 300 / 760; margin: var(--sp-4) auto 0; }
   .body-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
   .body-svg[hidden] { display: none; }   /* the hidden attribute does not hide SVG elements by itself */
   .mk { position: absolute; width: 28px; height: 28px; transform: translate(-50%, -50%); padding: 0; border: 0; background: none; cursor: pointer; z-index: 1; font: inherit; }
@@ -126,20 +131,26 @@
   .caption { margin: var(--sp-4) auto 0; max-width: 460px; background: var(--card); border-radius: var(--r-lg); padding: var(--sp-4); text-align: left; font-size: var(--fs-base); box-shadow: var(--shadow); }
   .caption strong { display: block; margin-bottom: var(--sp-1); font-weight: 600; }
   .caption .cap-s { display: block; padding: var(--sp-1) 0 var(--sp-1) var(--sp-3); border-left: 3px solid var(--mk-normal); margin: var(--sp-1) 0; }
-  .caption .cap-s.finding { border-left-color: var(--mk-finding); } .caption .cap-s.uncertain { border-left-color: var(--mk-uncertain); }
+  .caption .cap-s.finding { border-left-color: var(--mk-finding); } .caption .cap-s.uncertain { border-left-color: var(--warn); }
   .caption .muted { color: var(--muted); }
   .orient { color: var(--muted); font-size: var(--fs-xs); margin-top: var(--sp-2); }
 
   /* 3D figure: replaces the flat SVG; pins are HTML buttons projected from 3D points */
-  .figure.is3d { width: 100%; max-width: 600px; height: var(--fh); aspect-ratio: auto; border-radius: var(--r-lg); overflow: hidden;
+  .figure.is3d { width: 100%; max-width: 600px; height: var(--fh); aspect-ratio: auto; border-radius: var(--r-lg); overflow: clip;
     background: radial-gradient(120% 90% at 50% 38%, color-mix(in srgb, var(--card) 70%, transparent), transparent 70%); }
   .loading3d { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: var(--fs-base); }
-  .body3d-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  .body3d-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: pan-y pinch-zoom; cursor: grab; }
   .body3d-canvas:active { cursor: grabbing; }
   .pins { position: absolute; inset: 0; pointer-events: none; }
   .figure.is3d .mk { position: absolute; left: 0; top: 0; pointer-events: auto; transform: translate(-50%, -50%); transition: opacity .25s; }
-  .figure.is3d .mk { width: 22px; height: 22px; }
-  .figure.is3d .mk-dot { inset: 2px; font-size: 10px; }
+  .figure.is3d .mk { width: 24px; height: 24px; }
+  .figure.is3d .mk-dot { inset: 3px; font-size: 10px; }
+  @media (pointer: coarse) {
+    .mk { width: 44px; height: 44px; } .mk-dot { inset: 11px; }
+    .figure.is3d .mk { width: 44px; height: 44px; } .figure.is3d .mk-dot { inset: 13px; }
+    .mk-count { top: 6px; right: 6px; }
+    .seg-b { min-height: 44px; }
+  }
   .figure.is3d .mk[data-far="1"] { opacity: .28; }
   .figure.is3d .mk:hover, .figure.is3d .mk:focus-visible, .figure.is3d .mk[aria-pressed="true"] { z-index: 5; opacity: 1; }
   .figure.is3d .mk-label { display: none; }
@@ -147,11 +158,15 @@
   .figure.is3d .mk:hover .mk-label, .figure.is3d .mk:focus-visible .mk-label, .figure.is3d .mk[aria-pressed="true"] .mk-label { display: inline-flex; }
   .mk-count { position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 var(--sp-1); border-radius: var(--r-pill); background: var(--ink); color: var(--on-ink); font-size: 10px; font-weight: 600; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--card); }
   .seg { display: inline-flex; gap: var(--sp-1); padding: var(--sp-1); margin: var(--sp-2) auto 0; border-radius: var(--r-pill); background: var(--card); box-shadow: var(--shadow); }
+  .seg.pending { visibility: hidden; }
   .seg[hidden] { display: none; }   /* display:inline-flex above would otherwise win over the hidden attribute */
   .seg-b { border: 0; background: transparent; color: var(--ink); border-radius: var(--r-pill); min-height: 32px; padding: var(--sp-1) var(--sp-4); font: inherit; font-size: var(--fs-sm); cursor: pointer; }
+  .seg-b:hover { background: var(--card-2); }
   .seg-b[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+  .seg-b[aria-pressed="true"]:hover { background: var(--accent); }
   .credit { color: var(--muted); font-size: var(--fs-xs); margin: var(--sp-1) 0 0; }
   @media (prefers-reduced-motion: reduce) { .body3d-canvas { cursor: default; } }
+  @media (max-height: 500px) { .figure { --fh: 300px; } }
 
   /* right-hand column: verdict first, then the score cards */
   .side { display: grid; gap: var(--sp-3); min-width: 0; }
@@ -203,7 +218,8 @@
   .col .tagline { color: var(--muted); font-size: var(--fs-sm); margin: 2px 0 var(--sp-3); }
   .sent { margin: 0 0 var(--sp-2); padding: 2px 0 2px var(--sp-3); border-left: 3px solid transparent; overflow-wrap: anywhere; }
   .sent.unsupported { border-left-color: var(--bad); background: color-mix(in srgb, var(--flag-bg) 55%, transparent); }
-  mark.flag { background: var(--flag-bg); color: inherit; border-bottom: 2px solid var(--bad); border-radius: var(--r-xs); padding: 0 1px; }
+  mark.flag { position: relative; background: var(--flag-bg); color: inherit; border-bottom: 2px solid var(--bad); border-radius: var(--r-xs); padding: 0 1px; }
+  mark.flag:focus-visible::after { content: attr(data-tip); position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 6; width: max-content; max-width: min(240px, 70vw); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-md); background: var(--ink); color: var(--on-ink); font-size: var(--fs-sm); font-weight: 500; line-height: 1.35; box-shadow: var(--shadow-2); pointer-events: none; }
   /* hedge level: text stays in ink, the level is the underline style (dotted possible, dashed likely, solid unlikely) */
   .h-unlikely, .h-possible, .h-likely { color: var(--ink); text-decoration-line: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
   .h-possible { text-decoration-style: dotted; text-decoration-color: var(--lvl-possible); }
@@ -243,7 +259,7 @@
     .shell { padding: var(--sp-3); }
     .frame { padding: var(--sp-4) var(--sp-4) var(--sp-6); }
     .board { grid-template-columns: 1fr; }
-    .pills { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: var(--sp-1); order: 3; }
+    .pills { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding: var(--sp-2); margin: calc(var(--sp-2) * -1); order: 3; }
     .pill { flex: none; padding: 0 var(--sp-4); }
     .intro h1 { margin-top: var(--sp-5); }
     .stats { grid-template-columns: 1fr 1fr; }
@@ -280,14 +296,14 @@
         <p class="label" id="exlabel">Examples</p>
         <div class="chips" id="chips" role="group" aria-labelledby="exlabel"></div>
         <label class="label" for="report" style="display:block">Radiology report</label>
-        <textarea id="report" placeholder="FINDINGS: … IMPRESSION: …"></textarea>
+        <textarea id="report" placeholder="FINDINGS: … IMPRESSION: …" spellcheck="false" autocomplete="off" aria-describedby="status"></textarea>
         <div class="row">
           <button class="cta" id="quick" type="button"><span>Quick check <small>about 30 s</small></span><span class="cta-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></span></button>
           <button class="ghost" id="best" type="button">Best of 8 <small>about 2-3 min</small></button>
         </div>
         <div class="row">
           <label class="toggle"><input type="checkbox" id="glossToggle" checked> Explain medical terms</label>
-          <span id="status" role="status" aria-live="polite"></span>
+          <span id="status" role="status" aria-live="polite"></span><span id="tick" aria-hidden="true"></span>
         </div>
         <p class="note">Examples are pre-computed so nothing waits on the model. They were picked to show different cases, not to be representative. The table at the bottom has the real comparison.</p>
       </div>
@@ -300,7 +316,7 @@
         <button type="button" class="seg-b" id="modeOriginal" aria-pressed="false">Original report</button>
       </div>
       <p class="hint" id="maphint"></p>
-      <div class="seg" id="viewSeg" role="group" aria-label="How much of the body to show" hidden>
+      <div class="seg pending" id="viewSeg" role="group" aria-label="How much of the body to show">
         <button type="button" class="seg-b" id="viewChest" aria-pressed="true">Chest</button>
         <button type="button" class="seg-b" id="viewBody" aria-pressed="false">Whole body</button>
       </div>
@@ -341,7 +357,7 @@
           <circle cx="150" cy="322" r="2.5" fill="#fff" fill-opacity=".55"/>
         </svg>
       </div>
-      <div class="legend" aria-label="Marker key">
+      <div class="legend" role="group" aria-label="Marker key">
         <span><i class="g finding" aria-hidden="true">!</i>Finding</span>
         <span><i class="g uncertain" aria-hidden="true">?</i>Hedged (possible, likely)</span>
         <span><i class="g normal" aria-hidden="true">&#10003;</i>Normal or none reported</span>
@@ -353,7 +369,8 @@
 
     <div class="side">
       <div class="verdict" id="verdict" hidden></div>
-      <section class="stats" id="stats" aria-label="Scores for the checked draft"></section>
+      <h2 class="sr-only" id="statsh">Scores for the checked draft</h2>
+      <section class="stats" id="stats" aria-labelledby="statsh"></section>
     </div>
   </div>
 
@@ -368,13 +385,13 @@
     <div class="empty">Pick an example above.</div>
   </div>
 
-  <div class="key" aria-label="Legend">
-    <span><mark class="flag">word</mark> checker flag (hover for why)</span>
+  <div class="key" role="group" aria-label="Legend">
+    <span><mark class="flag">word</mark> checker flag (hover or focus for why)</span>
     <span><span class="h-possible">possible</span> / <span class="h-likely">likely</span> / <span class="h-unlikely">unlikely</span> hedge level</span>
     <span>red bar on the left: sentence not supported by the report</span>
   </div>
 
-  <section class="card foot-card" id="heldout" hidden><h2>Comparison on 120 unseen reports</h2><div id="summary"></div></section>
+  <section class="card foot-card" id="heldout" hidden tabindex="0" role="region" aria-labelledby="heldh"><h2 id="heldh">Comparison on 120 unseen reports</h2><div id="summary"></div></section>
   </main>
 </div>
 </div>
@@ -416,7 +433,9 @@ function paint(text, specs) {
   for (const r of ranges(text, specs)) {
     html += esc(text.slice(pos, r.s));
     const inner = esc(text.slice(r.s, r.e));
-    html += r.cls === "flag" ? `<mark class="flag" title="${esc(r.tip)}">${inner}</mark>` : `<span class="${r.cls}" title="${esc(r.tip)}">${inner}</span>`;
+    html += r.cls === "flag"
+      ? `<mark class="flag" tabindex="0" data-tip="${esc(r.tip)}" title="${esc(r.tip)}">${inner}<span class="sr-only"> (flagged: ${esc(r.tip)})</span></mark>`
+      : `<span class="${r.cls}" title="${esc(r.tip)}">${inner}<span class="sr-only"> (${esc(r.tip)})</span></span>`;
     pos = r.e;
   }
   return html + esc(text.slice(pos));
@@ -500,7 +519,9 @@ const findingText = (f) => {
 function syncMapMode() {
   const patient = mapMode === "patient";
   $("modePatient").setAttribute("aria-pressed", String(patient)); $("modeOriginal").setAttribute("aria-pressed", String(!patient));
-  $("maphint").innerHTML = (patient ? "From the checked patient version" : "From the original radiology report") + " &middot; drag to rotate, scroll to zoom, select a marker";
+  const touch = matchMedia("(pointer: coarse)").matches;
+  const how = !viewer ? "" : touch ? " &middot; swipe sideways to rotate, pinch to zoom, tap a marker" : " &middot; drag to rotate, hold Ctrl and scroll to zoom, select a marker";
+  $("maphint").innerHTML = (patient ? "From the checked patient version" : "From the original radiology report") + how;
   $("fh").textContent = patient ? "Findings in the patient version" : "Findings in the original report";
 }
 
@@ -528,7 +549,7 @@ function renderMarkersSvg() {
 }
 async function startViewer() {
   const fig = $("figure"), fail = (why) => {
-    viewerPending = false; $("loading3d")?.remove(); $("fallbackSvg").removeAttribute("hidden"); viewer = null;
+    viewerPending = false; $("loading3d")?.remove(); $("fallbackSvg").removeAttribute("hidden"); viewer = null; $("viewSeg").hidden = true; syncMapMode();
     $("credit").textContent = "3D view unavailable (" + why + "); showing a flat figure.";
     if (current) renderMarkers();
   };
@@ -539,7 +560,8 @@ async function startViewer() {
     if (!v) return;
     viewer = v; fig.classList.add("is3d"); $("loading3d").remove();
     $("credit").textContent = v.credit;
-    if (v.hasFullBody) $("viewSeg").hidden = false;
+    if (v.hasFullBody) $("viewSeg").classList.remove("pending"); else $("viewSeg").hidden = true;
+    syncMapMode();
     if (current) { renderMarkers(); if (active) viewer.focus(active); }
   } catch (e) { viewerPending = false; fail(String(e.message || e)); }
 }
@@ -577,7 +599,7 @@ function setActive(id) {
 function renderFindings() {
   $("findlist").innerHTML = findings.map((f) => {
     const chips = f.regions.length
-      ? f.regions.map((id) => `<button type="button" class="rchip" data-r="${id}" aria-pressed="false" title="Show on the body">${esc(SPOTS[id][3])}</button>`).join("")
+      ? f.regions.map((id) => `<button type="button" class="rchip" data-r="${id}" aria-pressed="false" title="Show on the body" aria-label="Show ${esc(SPOTS[id][3])} on the body">${esc(SPOTS[id][3])}</button>`).join("")
       : '<span class="muted">Not placed on the body</span>';
     return `<li class="find" data-i="${f.i}"><div class="find-head"><span class="badge ${f.status}"><b aria-hidden="true">${GLYPH[f.status]}</b>${STATUS_TEXT[f.status]}</span>${chips}</div><p>${findingText(f)}</p></li>`;
   }).join("") || '<li class="muted">No report loaded.</li>';
@@ -606,7 +628,7 @@ function chartSvg(sents) {
   const bars = sents.map((s, i) => {
     const v = Math.max(0, Math.min(1, s.support)), h = 6 + v * 74, x = 8 + i * step + (step - bw) / 2;
     const bad = s.flags.some((f) => f.kind === "unsupported");
-    const fill = bad ? "var(--bad)" : v < 0.75 ? "var(--warn)" : "var(--bar)";
+    const fill = bad ? "var(--bad)" : v < 0.75 ? "var(--warn)" : "var(--bar-strong)";
     return `<rect x="${x.toFixed(1)}" y="${(88 - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="${Math.min(6, bw / 2)}" fill="${fill}"/>` +
       (n <= 12 ? `<text x="${(x + bw / 2).toFixed(1)}" y="104" text-anchor="middle" font-size="11" fill="var(--muted)">${i + 1}</text>` : "");
   }).join("");
@@ -647,7 +669,7 @@ function issues(summary) {
 function bars(score) {
   return `<div class="bars">${BARS.map(([k, label, tip]) => {
     const v = Math.max(0, Math.min(1, score[k]));
-    return `<div class="bar ${k === "total" ? "total" : ""}" title="${esc(tip)}"><span>${label}</span><span class="track"><span class="fill" style="width:${v * 100}%;background:${scoreColor(v)}"></span></span><span>${v.toFixed(2)}</span></div>`;
+    return `<div class="bar ${k === "total" ? "total" : ""}" title="${esc(tip)}"><span>${label}<span class="sr-only">: ${esc(tip)}</span></span><span class="track"><span class="fill" style="width:${v * 100}%;background:${scoreColor(v)}"></span></span><span>${v.toFixed(2)}</span></div>`;
   }).join("")}</div>`;
 }
 const GLOSS_TIP = "Plain explanation from our fixed glossary, not written by the AI";
@@ -662,7 +684,7 @@ function outputColumn(title, tag, item) {
     if (s.hedge_terms.length) specs.push(hedgeSpec(s.hedge_terms, s.level));
     const unsupported = s.flags.some((f) => f.kind === "unsupported");
     const tip = `support from report: ${(s.support * 100).toFixed(0)}%` + (unsupported ? " (low)" : "");
-    return `<p class="sent ${unsupported ? "unsupported" : ""}" title="${esc(tip)}">${body(s, specs)}</p>`;
+    return `<p class="sent ${unsupported ? "unsupported" : ""}" title="${esc(tip)}">${body(s, specs)}<span class="sr-only"> (${esc(tip)})</span></p>`;
   }).join("");
   return `<div class="col"><h3>${title}</h3><p class="tagline">${tag}</p>${sents}${bars(ex.score)}${issues(ex.summary)}</div>`;
 }
@@ -688,20 +710,32 @@ function pick(i) {
   $("report").value = examples[i].source;
   render(examples[i]);
 }
+let running = false;
+const setBusy = (on) => ["grid", "stats", "findings"].forEach((id) => (on ? $(id).setAttribute("aria-busy", "true") : $(id).removeAttribute("aria-busy")));
+function say(msg, err) { $("status").textContent = msg; $("status").classList.toggle("err", !!err); }
 async function live(mode) {
+  if (running) return;
   const report = $("report").value.trim();
-  if (!report) { $("status").textContent = "Paste a report first."; return; }
+  if (!report) {
+    say("Paste a report first.", true);
+    $("report").setAttribute("aria-invalid", "true"); $("report").focus();
+    return;
+  }
+  $("report").removeAttribute("aria-invalid");
   document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
-  $("quick").disabled = $("best").disabled = true;
+  running = true; setBusy(true);
+  $("quick").setAttribute("aria-disabled", "true"); $("best").setAttribute("aria-disabled", "true");
   const t0 = Date.now(); let cold = true;
-  const timer = setInterval(() => { $("status").textContent = `Working… ${Math.round((Date.now() - t0) / 1000)} s` + (cold ? " (first run loads the model)" : ""); }, 500);
+  say("Working…");
+  const timer = setInterval(() => { $("tick").textContent = ` ${Math.round((Date.now() - t0) / 1000)} s` + (cold ? " (first run loads the model)" : ""); }, 500);
   try {
     const res = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ report, mode }) });
-    const data = await res.json(); cold = false;
-    if (!res.ok) throw new Error(data.error || res.statusText);
-    render(data); $("status").textContent = `Done in ${Math.round((Date.now() - t0) / 1000)} s.`;
-  } catch (e) { $("status").textContent = "Failed: " + e.message; }
-  finally { clearInterval(timer); $("quick").disabled = $("best").disabled = false; }
+    const data = await res.json().catch(() => null); cold = false;
+    if (!res.ok) throw new Error(res.status === 409 ? "Another check is running. Try again in a minute." : (data && data.error) || res.statusText || "Request failed");
+    if (!data) throw new Error("The server sent an unreadable answer.");
+    render(data); say(`Done in ${Math.round((Date.now() - t0) / 1000)} s.`);
+  } catch (e) { say("Failed: " + e.message, true); }
+  finally { clearInterval(timer); $("tick").textContent = ""; running = false; setBusy(false); $("quick").removeAttribute("aria-disabled"); $("best").removeAttribute("aria-disabled"); }
 }
 function tableFrom(md) {
   const rows = md.split("\n").filter((l) => l.startsWith("|") && !/^\|[-| ]+\|$/.test(l)).map((l) => l.split("|").slice(1, -1).map((c) => c.trim()));
@@ -725,11 +759,24 @@ async function init() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && active) setActive(active); });
   startViewer();
   renderCaption();
-  examples = await (await fetch("/api/examples")).json();
-  $("chips").innerHTML = examples.map((e, i) => `<button class="chip" type="button" aria-pressed="false" data-i="${i}">${esc(e.title)}</button>`).join("");
+  try {
+    const r = await fetch("/api/examples");
+    if (!r.ok) throw new Error(r.statusText);
+    examples = await r.json();
+  } catch (e) {
+    examples = [];
+    const msg = "Examples could not load. Paste a report instead.";
+    $("chips").textContent = msg;
+    const empty = $("grid").querySelector(".empty"); if (empty) empty.textContent = msg;
+  }
+  $("chips").innerHTML = !examples.length ? $("chips").innerHTML : examples.map((e, i) => `<button class="chip" type="button" aria-pressed="false" data-i="${i}">${esc(e.title)}</button>`).join("");
   document.querySelectorAll(".chip").forEach((c) => (c.onclick = () => pick(+c.dataset.i)));
   if (examples.length) pick(0);
-  const md = (await (await fetch("/api/summary")).json()).markdown;
+  let md = "";
+  try {
+    const r = await fetch("/api/summary");
+    if (r.ok) md = (await r.json()).markdown;
+  } catch (e) { /* the table just stays hidden */ }
   if (md) { $("summary").innerHTML = tableFrom(md); $("heldout").hidden = false; }
 }
 init();

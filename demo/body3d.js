@@ -63,6 +63,17 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
   const camera = new THREE.PerspectiveCamera(FOV, 1, 0.05, 20);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = false;
+  // wheel zoom must not trap page scroll: zoom only while the pointer is pressed or Ctrl/Meta is held
+  controls.enableZoom = false;
+  let pressed = false, modKey = false;
+  const syncZoom = () => { controls.enableZoom = pressed || modKey; };
+  renderer.domElement.addEventListener("wheel", (e) => { controls.enableZoom = pressed || e.ctrlKey || e.metaKey; }, { capture: true });
+  renderer.domElement.addEventListener("pointerdown", () => { pressed = true; syncZoom(); });
+  addEventListener("pointerup", () => { pressed = false; syncZoom(); });
+  addEventListener("pointercancel", () => { pressed = false; syncZoom(); });
+  addEventListener("keydown", (e) => { if (e.key === "Control" || e.key === "Meta") { modKey = true; syncZoom(); } });
+  addEventListener("keyup", (e) => { if (e.key === "Control" || e.key === "Meta") { modKey = false; syncZoom(); } });
+  addEventListener("blur", () => { pressed = modKey = false; syncZoom(); });
   controls.minPolarAngle = 0.5; controls.maxPolarAngle = Math.PI - 0.5;
 
   const organs = new Map();      // node name -> [materials]
@@ -152,6 +163,8 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
     for (const p of list) {
       p.m.el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -50%)`;
       p.m.el.dataset.far = p.far ? "1" : "0";
+      // pins outside the canvas leave the tab order (visibility:hidden)
+      p.m.el.style.visibility = (p.x < 0 || p.x > w || p.y < 0 || p.y > h) ? "hidden" : "";
       // keep the label inside the figure: beside the pin when there is room, else below it, shifted to fit
       const lw = 36 + p.m.labelLen * 6.6;
       const side = w - p.x - 16 >= lw ? "r" : p.x - 16 >= lw ? "l" : "b";
@@ -164,7 +177,9 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
   }
   function setMarkers(items) {
     pinLayer.innerHTML = ""; markers = new Map();
-    for (const it of items) {
+    // tab order follows the picture: top of the body first
+    const ordered = [...items].sort((a, b) => ((anatomy.regions[b.id]?.anchor[1] ?? 0) - (anatomy.regions[a.id]?.anchor[1] ?? 0)));
+    for (const it of ordered) {
       const reg = anatomy.regions[it.id];
       if (!reg) continue;
       const el = document.createElement("button");
