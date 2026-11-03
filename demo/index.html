@@ -271,6 +271,31 @@
   .res-head .panel-h { margin: 0; }
   .res-head .seg { margin: 0; }
   .outpanel .col { box-shadow: none; padding: 0; background: none; }
+  .finder { margin-bottom: var(--sp-4); padding-bottom: var(--sp-4); border-bottom: 1px solid var(--line); }
+  .fchips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+  .fchip { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 32px; padding: 0 var(--sp-3); border: 1px solid var(--line-strong); border-radius: var(--r-pill); background: var(--card); color: var(--ink); font: inherit; font-size: var(--fs-sm); cursor: pointer; }
+  .fchip b { font-weight: 600; color: var(--muted); }
+  .fchip[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+  .fchip[aria-pressed="true"] b { color: inherit; opacity: .75; }
+  .fbar { display: flex; gap: 2px; height: 6px; margin: var(--sp-3) 0; border-radius: 3px; overflow: hidden; }
+  .fbar i { display: block; min-width: 0; }
+  .fbar .finding, .fdot.finding { --c: var(--mk-finding); } .fbar .uncertain, .fdot.uncertain { --c: var(--mk-uncertain); } .fbar .normal, .fdot.normal { --c: var(--mk-normal); }
+  .fbar i { background: var(--c); }
+  .fstep { display: flex; align-items: center; gap: var(--sp-3); }
+  .fstep > button { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--card); color: var(--ink); font: inherit; font-size: 20px; line-height: 1; cursor: pointer; }
+  .fstep > button:hover:not(:disabled) { background: var(--card-2); }
+  .fstep > button:disabled { opacity: .4; cursor: default; }
+  .fdots { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; flex: 1; min-width: 0; }
+  .fdot { position: relative; width: 14px; height: 14px; padding: 0; border-radius: 50%; border: 2px solid transparent; background: var(--c); cursor: pointer; transition: transform .15s; }
+  .fdot::after { content: ""; position: absolute; inset: -6px; }
+  .fdot[aria-current="true"] { transform: scale(1.5); border-color: var(--ink); }
+  .fpos { margin-top: var(--sp-2); text-align: center; font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .fcard { margin-top: var(--sp-3); padding: var(--sp-4); background: var(--card-2); border-radius: var(--r-md); border-left: 4px solid var(--c, var(--line-strong)); }
+  .fcard.finding { --c: var(--mk-finding); } .fcard.uncertain { --c: var(--mk-uncertain); } .fcard.normal { --c: var(--mk-normal); }
+  .fcard p { margin-top: var(--sp-2); overflow-wrap: anywhere; }
+  .fflags { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
+  .fflag { font-size: var(--fs-xs); padding: 2px var(--sp-2); border-radius: var(--r-xs); background: var(--flag-bg); }
+  .fscore { margin-top: var(--sp-3); font-size: var(--fs-xs); color: var(--muted); }
   .controls .row + .row { margin-top: var(--sp-3); }
   @media (max-width: 1100px) {
     .map { position: static; }
@@ -312,7 +337,7 @@
     </a>
     <nav class="rail-nav">
       <a class="rl" href="#top" title="Overview" aria-label="Overview"><svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true" focusable="false"><rect x="2" y="2" width="6" height="6" rx="1.5"/><rect x="10" y="2" width="6" height="6" rx="1.5"/><rect x="2" y="10" width="6" height="6" rx="1.5"/><rect x="10" y="10" width="6" height="6" rx="1.5"/></svg></a>
-      <a class="rl" href="#findings" title="Findings" aria-label="Findings"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M3 4.5h12M3 9h12M3 13.5h8"/></svg></a>
+      <a class="rl" href="#result" title="Findings and output" aria-label="Findings and output"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M3 4.5h12M3 9h12M3 13.5h8"/></svg></a>
       <a class="rl" href="#heldout" title="Results on 120 reports" aria-label="Results on 120 reports"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M3 15V9M7.5 15V4M12 15v-6M16 15H2"/></svg></a>
     </nav>
   </aside>
@@ -423,7 +448,20 @@
             <button type="button" class="seg-b" id="outTab0" aria-pressed="false">Original</button>
           </div>
         </div>
-        <div class="verdict" id="verdict" hidden></div>
+        <div class="finder" id="finder" aria-labelledby="fh">
+          <h3 class="sr-only" id="fh">Findings in the patient version</h3>
+          <div class="fchips" id="fchips" role="group" aria-label="Filter the findings"></div>
+          <div class="fbar" id="fbar" aria-hidden="true"></div>
+          <div class="fstep">
+            <button type="button" id="fPrev" aria-label="Previous statement">&lsaquo;</button>
+            <div class="fdots" id="fdots" role="group" aria-label="Statements in the report"></div>
+            <button type="button" id="fNext" aria-label="Next statement">&rsaquo;</button>
+          </div>
+          <p class="fpos" id="fpos" aria-live="polite"></p>
+          <article class="fcard" id="fcard" tabindex="-1"></article>
+          <p class="fscore" id="fscore"></p>
+          <p class="fscore" id="findsub">Places are guessed from words like "right lung" or "heart", so they show what the text talks about, not exact positions. Check them against the report.</p>
+        </div>
         <div id="outpanel" class="outpanel"><p class="muted">Pick an example or run a check to see the draft and what the checker flagged.</p></div>
         <div class="key" role="group" aria-label="Legend">
           <span><mark class="flag">word</mark> checker flag (hover or focus for why)</span>
@@ -434,12 +472,6 @@
 
     </div>
   </div>
-
-  <section class="findings" id="findings" aria-labelledby="fh">
-    <h2 id="fh">Findings in the patient version</h2>
-    <p class="sub" id="findsub">Places are guessed from words like "right lung" or "heart", so they show what the text talks about, not exact positions. Check them against the report.</p>
-    <ol class="find-list" id="findlist"></ol>
-  </section>
 
 
   <section class="card foot-card" id="heldout" hidden tabindex="0" role="region" aria-labelledby="heldh"><h2 id="heldh">Comparison on 120 unseen reports</h2><div id="summary"></div></section>
@@ -682,21 +714,64 @@ function setActive(id, quiet) {
   active = active === id ? null : id;
   viewer?.focus(active);
   $("figure").querySelectorAll(".mk").forEach((m) => m.setAttribute("aria-pressed", String(m.dataset.r === active)));
-  const on = active ? new Set(regions.get(active).items) : new Set();
-  document.querySelectorAll(".find").forEach((li) => li.classList.toggle("on", on.has(+li.dataset.i)));
+  syncFinder();
   document.querySelectorAll(".rchip").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.r === active)));
   document.querySelectorAll(".co").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.r === active)));
   renderCaption();
   if (!quiet && canAnim() && $("caption").children.length) gsap.fromTo($("caption").children, { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.2, ease: "power1.out", overwrite: true, clearProps: "opacity,transform" });
 }
+/* ---------- findings explorer: filter by status, step through the statements, the 3D body follows ---------- */
+let findFilter = "all", findIdx = 0;
+const FILTERS = [["all", "All"], ["finding", "Findings"], ["uncertain", "Hedged"], ["normal", "Normal"]];
+const visibleFindings = () => findings.filter((f) => findFilter === "all" || f.status === findFilter);
 function renderFindings() {
-  $("findlist").innerHTML = findings.map((f) => {
-    const chips = f.regions.length
-      ? f.regions.map((id) => `<button type="button" class="rchip" data-r="${id}" aria-pressed="false" title="Show on the body" aria-label="Show ${esc(SPOTS[id][3])} on the body">${esc(SPOTS[id][3])}</button>`).join("")
-      : '<span class="muted">Not placed on the body</span>';
-    return `<li class="find" data-i="${f.i}"><div class="find-head"><span class="badge ${f.status}"><b aria-hidden="true">${GLYPH[f.status]}</b>${STATUS_TEXT[f.status]}</span>${chips}</div><p>${findingText(f)}</p></li>`;
-  }).join("") || '<li class="muted">No report loaded.</li>';
-  document.querySelectorAll(".rchip").forEach((c) => (c.onclick = () => { setActive(c.dataset.r); }));
+  const counts = { finding: 0, uncertain: 0, normal: 0 };
+  findings.forEach((f) => counts[f.status]++);
+  $("fchips").innerHTML = FILTERS.map(([k, label]) => {
+    const n = k === "all" ? findings.length : counts[k];
+    return `<button type="button" class="fchip" data-f="${k}" aria-pressed="${findFilter === k}">${k === "all" ? "" : `<i class="g ${k}" aria-hidden="true">${GLYPH[k]}</i>`}${label} <b>${n}</b></button>`;
+  }).join("");
+  $("fbar").innerHTML = ["finding", "uncertain", "normal"].map((k) => `<i class="${k}" style="flex:${counts[k]}"></i>`).join("");
+  findIdx = Math.min(findIdx, Math.max(0, visibleFindings().length - 1));
+  renderFindCard();
+}
+function renderFindCard(move, animate) {
+  const list = visibleFindings(), f = list[findIdx];
+  $("fdots").innerHTML = list.map((g, k) => `<button type="button" class="fdot ${g.status}" data-k="${k}" aria-current="${k === findIdx}" aria-label="Statement ${k + 1}: ${STATUS_TEXT[g.status]}"></button>`).join("");
+  $("fPrev").disabled = $("fNext").disabled = list.length < 2;
+  if (!f) {
+    $("fpos").textContent = "";
+    $("fcard").className = "fcard";
+    $("fcard").innerHTML = '<p class="muted">No report loaded.</p>';
+    return;
+  }
+  $("fpos").textContent = `Statement ${findIdx + 1} of ${list.length}`;
+  const chips = f.regions.length
+    ? f.regions.map((id) => `<button type="button" class="rchip" data-r="${id}" aria-pressed="${id === active}" title="Show on the body" aria-label="Show ${esc(SPOTS[id][3])} on the body">${esc(SPOTS[id][3])}</button>`).join("")
+    : '<span class="muted">Not placed on the body</span>';
+  const flags = (f.s.flags || []).map((fl) => `<span class="fflag" title="${esc(KIND_TIP[fl.kind] || "")}">${esc(fl.kind)}</span>`).join("");
+  $("fcard").className = "fcard " + f.status;
+  $("fcard").innerHTML = `<div class="find-head"><span class="badge ${f.status}"><b aria-hidden="true">${GLYPH[f.status]}</b>${STATUS_TEXT[f.status]}</span>${chips}</div><p>${findingText(f)}</p>` +
+    (flags ? `<div class="fflags" aria-label="What the checker flagged">${flags}</div>` : "");
+  $("fcard").querySelectorAll(".rchip").forEach((c) => (c.onclick = () => setActive(c.dataset.r)));
+  if (animate && canAnim()) gsap.fromTo($("fcard"), { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.2, ease: "power1.out", overwrite: true, clearProps: "opacity,transform" });
+  if (move) {
+    if (f.regions.length) { if (active !== f.regions[0]) setActive(f.regions[0], true); }
+    else if (active) setActive(active, true);
+  }
+}
+function stepFinding(d) {
+  const n = visibleFindings().length;
+  if (n < 2) return;
+  findIdx = (findIdx + d + n) % n;
+  renderFindCard(true, true);
+}
+// the marker or callout the user clicked on the body decides which statement the explorer shows
+function syncFinder() {
+  const list = visibleFindings(), cur = list[findIdx];
+  if (!active || !regions.has(active) || (cur && cur.regions.includes(active))) return;
+  const k = list.findIndex((f) => f.regions.includes(active));
+  if (k >= 0) { findIdx = k; renderFindCard(false, true); }
 }
 
 /* ---------- score tags ---------- */
@@ -749,7 +824,7 @@ let swapCtx = null;
 function swapIn() {
   swapCtx = gsap.context(() => {
     const enter = (sel, stagger) => { const t = document.querySelectorAll(sel); if (t.length) gsap.from(t, { opacity: 0, y: 8, duration: 0.3, ease: "power2.out", stagger, clearProps: "opacity,transform" }); };
-    enter("#outpanel .col", 0.06); enter("#findlist .find", { amount: 0.25 }); enter("#verdict", 0);
+    enter("#outpanel .col", 0.06); enter("#finder", 0);
     const fills = document.querySelectorAll("#outpanel .bar .fill");
     if (fills.length) gsap.fromTo(fills, { xPercent: -100, x: 0 }, { xPercent: (i, el) => -(1 - +el.style.getPropertyValue("--v")) * 100, x: 0, duration: 0.6, ease: "power2.out", stagger: 0.04, clearProps: "transform" });
   });
@@ -776,6 +851,7 @@ function render(ex) {
   const changed = current !== ex;                // entrance only when a different report is shown
   if (swapCtx) { swapCtx.revert(); swapCtx = null; }
   current = ex;
+  if (changed) { findFilter = "all"; findIdx = 0; }
   analyse(ex); renderMarkers(); renderFindings();
   if (keep && regions.has(keep)) setActive(keep, true); else renderCaption();
   columns = [sourceColumn(ex), outputColumn("Plain draft", "One draft, no checking", ex.plain),
@@ -783,9 +859,8 @@ function render(ex) {
   syncOut();
   const a = ex.plain.explain.score.total, b = ex.selected.explain.score.total;
   const same = ex.plain.text === ex.selected.text;
-  $("verdict").hidden = false;
-  $("verdict").textContent = same ? "The checker kept the plain draft here (no better candidate found)." :
-    `The checker's overall score: plain draft ${a.toFixed(2)}, checked draft ${b.toFixed(2)}.` + (ex.acceptable ? "" : " No draft passed all hard checks, so the top-scoring one is shown.");
+  $("fscore").textContent = same ? "The checker kept the plain draft here (no better candidate found)." :
+    `Checker score: ${b.toFixed(2)} for the checked draft, ${a.toFixed(2)} for the plain draft.` + (ex.acceptable ? "" : " No draft passed every hard check, so the top-scoring one is shown.");
   if (changed && canAnim()) swapIn();
 }
 
@@ -796,8 +871,8 @@ function pick(i) {
   render(examples[i]);
 }
 let running = false;
-const setBusy = (on) => ["outpanel", "findings"].forEach((id) => (on ? $(id).setAttribute("aria-busy", "true") : $(id).removeAttribute("aria-busy")));
-const RESULT_IDS = ["outpanel", "findings"];
+const setBusy = (on) => ["outpanel", "finder"].forEach((id) => (on ? $(id).setAttribute("aria-busy", "true") : $(id).removeAttribute("aria-busy")));
+const RESULT_IDS = ["outpanel", "finder"];
 function dimResults(on, instant) {
   const els = RESULT_IDS.map($);
   if (window.gsap) gsap.killTweensOf(els);
@@ -858,6 +933,14 @@ function tableFrom(md) {
     `<p class="note">${esc(md.split("\n").filter((l) => l && !l.startsWith("|") && !l.startsWith("#")).join(" "))}</p>`;
 }
 function wireInput() {
+  $("fchips").onclick = (e) => { const b = e.target.closest(".fchip"); if (!b) return; findFilter = b.dataset.f; findIdx = 0; renderFindings(); };
+  $("fdots").onclick = (e) => { const b = e.target.closest(".fdot"); if (!b) return; findIdx = +b.dataset.k; renderFindCard(true, true); };
+  $("fPrev").onclick = () => stepFinding(-1);
+  $("fNext").onclick = () => stepFinding(1);
+  $("finder").addEventListener("keydown", (e) => {
+    if (!e.target.closest(".fstep") || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+    e.preventDefault(); stepFinding(e.key === "ArrowRight" ? 1 : -1);
+  });
   [0, 1, 2].forEach((i) => ($("outTab" + i).onclick = () => { outTab = i; syncOut(); }));
   $("upload").onclick = () => $("fileIn").click();
   $("fileIn").onchange = (e) => { readFileInto(e.target.files[0]); e.target.value = ""; };
