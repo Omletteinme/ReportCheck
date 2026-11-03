@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 640" width="1900" height="640" font-family="Segoe UI, Arial, sans-serif">
+  <title>Data and evaluation sets</title>
+  <rect width="1900" height="640" fill="#ffffff"/>
+  <text x="40" y="54" font-size="28" font-weight="600" fill="#14171f" text-anchor="start">Which reports were used for what</text>
+  <rect x="40" y="100" width="420" height="150" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="58" y="134" font-size="20" font-weight="600" fill="#14171f">Open-i chest X-ray reports</text>
+  <text x="58" y="162" font-size="15.5" fill="#596173">3,159 public, anonymised reports</text>
+  <text x="58" y="185" font-size="15.5" fill="#596173">XXXX marks text removed by NLM</text>
+  <rect x="40" y="290" width="420" height="120" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="58" y="324" font-size="20" font-weight="600" fill="#14171f">50 synthetic reports</text>
+  <text x="58" y="352" font-size="15.5" fill="#596173">Template-written, labeled synthetic</text>
+  <text x="58" y="375" font-size="15.5" fill="#596173">Unit tests only, in no result</text>
+  <rect x="40" y="450" width="420" height="120" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="58" y="484" font-size="20" font-weight="600" fill="#14171f">PLABA abstracts</text>
+  <text x="58" y="512" font-size="15.5" fill="#596173">749 plain-language abstracts</text>
+  <text x="58" y="535" font-size="15.5" fill="#596173">Not used in the results</text>
+  <line x1="460" y1="175" x2="551" y2="175" stroke="#596173" stroke-width="2"/><path d="M560 175 l-11 -6 v12 z" fill="#596173"/>
+  <rect x="560" y="100" width="420" height="150" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="578" y="134" font-size="20" font-weight="600" fill="#14171f">Split (fixed)</text>
+  <text x="578" y="162" font-size="15.5" fill="#596173">645 train / 120 test ids</text>
+  <text x="578" y="185" font-size="15.5" fill="#596173">Nothing was trained on either</text>
+  <line x1="980" y1="175" x2="1071" y2="175" stroke="#596173" stroke-width="2"/><path d="M1080 175 l-11 -6 v12 z" fill="#596173"/>
+  <rect x="1080" y="60" width="770" height="110" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="1098" y="94" font-size="20" font-weight="600" fill="#14171f">Verifier sets 1 to 3 (40 outputs each)</text>
+  <text x="1098" y="122" font-size="15.5" fill="#596173">Set 1 and 2: Qwen 1.5B, set 3: Qwen 3B. Labeled blind by Claude.</text>
+  <rect x="1080" y="190" width="770" height="190" rx="16" fill="#2453c4" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="1098" y="224" font-size="20" font-weight="600" fill="#ffffff">Final comparison: 120 unseen reports</text>
+  <text x="1098" y="252" font-size="15.5" fill="#e8eefc">40 held-out test reports + 80 from the train split</text>
+  <text x="1098" y="275" font-size="15.5" fill="#e8eefc">(unused: nothing was ever trained), each with a plain draft</text>
+  <text x="1098" y="298" font-size="15.5" fill="#e8eefc">and a best-of-N pick = 240 outputs, 202 distinct to label</text>
+  <rect x="1080" y="400" width="770" height="170" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="1098" y="434" font-size="20" font-weight="600" fill="#14171f">Labels (assigned by Claude, an AI)</text>
+  <text x="1098" y="462" font-size="15.5" fill="#596173">H hedge level changed  |  N number or side wrong</text>
+  <text x="1098" y="485" font-size="15.5" fill="#596173">F unsupported or wrong content  |  O key finding left out</text>
+  <text x="1098" y="508" font-size="15.5" fill="#596173">Not human labels: teammate labeling was not collected</text>
+</svg>

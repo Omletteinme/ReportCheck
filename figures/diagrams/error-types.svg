@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 520" width="1900" height="520" font-family="Segoe UI, Arial, sans-serif">
+  <title>Error types used in the labels</title>
+  <rect width="1900" height="520" fill="#ffffff"/>
+  <text x="40" y="54" font-size="28" font-weight="600" fill="#14171f" text-anchor="start">The four kinds of error we label (illustrative examples, not quotes from the data)</text>
+  <rect x="40" y="100" width="430" height="190" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="58" y="134" font-size="20" font-weight="600" fill="#14171f">H  Certainty changed</text>
+  <text x="58" y="162" font-size="15.5" fill="#596173">Report: &#x27;may represent atelectasis&#x27;</text>
+  <text x="58" y="185" font-size="15.5" fill="#596173">Draft: &#x27;this is atelectasis&#x27;</text>
+  <text x="58" y="208" font-size="15.5" fill="#596173">A hedge was dropped or added</text>
+  <rect x="500" y="100" width="430" height="190" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="518" y="134" font-size="20" font-weight="600" fill="#14171f">N  Number or side wrong</text>
+  <text x="518" y="162" font-size="15.5" fill="#596173">Report: &#x27;blunted on the right&#x27;</text>
+  <text x="518" y="185" font-size="15.5" fill="#596173">Draft: &#x27;on the left&#x27;</text>
+  <text x="518" y="208" font-size="15.5" fill="#596173">Also invented numbers or times</text>
+  <rect x="960" y="100" width="430" height="190" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="978" y="134" font-size="20" font-weight="600" fill="#14171f">F  Unsupported content</text>
+  <text x="978" y="162" font-size="15.5" fill="#596173">Report: no recommendation</text>
+  <text x="978" y="185" font-size="15.5" fill="#596173">Draft: &#x27;no need to worry&#x27;</text>
+  <text x="978" y="208" font-size="15.5" fill="#596173">Also wrong explanations of terms</text>
+  <rect x="1420" y="100" width="430" height="190" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="1438" y="134" font-size="20" font-weight="600" fill="#14171f">O  Key finding left out</text>
+  <text x="1438" y="162" font-size="15.5" fill="#596173">Report impression: &#x27;emphysema&#x27;</text>
+  <text x="1438" y="185" font-size="15.5" fill="#596173">Draft never mentions it</text>
+  <text x="1438" y="208" font-size="15.5" fill="#596173">Checked by the omission score</text>
+  <text x="40" y="350" font-size="17" font-weight="400" fill="#596173" text-anchor="start">A minor wrong explanation of a term is noted as &#x27;f&#x27; and is not counted as an error. Omission is labeled separately from H, N and F.</text>
+  <text x="40" y="382" font-size="17" font-weight="400" fill="#596173" text-anchor="start">Definitions: results/human_labeling/GUIDELINES.md (the same rules were used by the AI labeler).</text>
+</svg>

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 640" width="1900" height="640" font-family="Segoe UI, Arial, sans-serif">
+  <title>Verifier components and weights</title>
+  <rect width="1900" height="640" fill="#ffffff"/>
+  <text x="40" y="54" font-size="28" font-weight="600" fill="#14171f" text-anchor="start">What the verifier checks in a draft (score 0 to 1, weights add to 1)</text>
+  <rect x="40" y="100" width="330" height="190" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="58" y="134" font-size="20" font-weight="600" fill="#14171f">Meaning kept</text>
+  <text x="58" y="162" font-size="15.5" fill="#596173">Each draft sentence must be</text>
+  <text x="58" y="185" font-size="15.5" fill="#596173">supported by the report (NLI)</text>
+  <text x="58" y="208" font-size="15.5" fill="#596173">Catches: invented claims</text>
+  <text x="58" y="276" font-size="17" font-weight="600" fill="#2453c4" text-anchor="start">weight 0.2975</text>
+  <rect x="404" y="100" width="330" height="190" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="422" y="134" font-size="20" font-weight="600" fill="#14171f">Numbers and sides</text>
+  <text x="422" y="162" font-size="15.5" fill="#596173">Numbers and units, left/right,</text>
+  <text x="422" y="185" font-size="15.5" fill="#596173">severity words, comparisons,</text>
+  <text x="422" y="208" font-size="15.5" fill="#596173">number tied to the right side</text>
+  <text x="422" y="276" font-size="17" font-weight="600" fill="#2453c4" text-anchor="start">weight 0.2125</text>
+  <rect x="768" y="100" width="330" height="190" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="786" y="134" font-size="20" font-weight="600" fill="#14171f">Certainty kept</text>
+  <text x="786" y="162" font-size="15.5" fill="#596173">Hedge levels (unlikely &lt; possible</text>
+  <text x="786" y="185" font-size="15.5" fill="#596173">&lt; likely &lt; definite) stay the same</text>
+  <text x="786" y="208" font-size="15.5" fill="#596173">Catches: &#x27;may be&#x27; turned into &#x27;is&#x27;</text>
+  <text x="786" y="276" font-size="17" font-weight="600" fill="#2453c4" text-anchor="start">weight 0.2125</text>
+  <rect x="1132" y="100" width="330" height="190" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="1150" y="134" font-size="20" font-weight="600" fill="#14171f">Plainer wording</text>
+  <text x="1150" y="162" font-size="15.5" fill="#596173">Readability gain; zero for</text>
+  <text x="1150" y="185" font-size="15.5" fill="#596173">near-copies of the report</text>
+  <text x="1150" y="208" font-size="15.5" fill="#596173">(shown as Plainer wording)</text>
+  <text x="1150" y="276" font-size="17" font-weight="600" fill="#2453c4" text-anchor="start">weight 0.1275</text>
+  <rect x="1496" y="100" width="330" height="190" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="1514" y="134" font-size="20" font-weight="600" fill="#14171f">Nothing left out</text>
+  <text x="1514" y="162" font-size="15.5" fill="#596173">Impression, recommendations and</text>
+  <text x="1514" y="185" font-size="15.5" fill="#596173">hedged or measured findings</text>
+  <text x="1514" y="208" font-size="15.5" fill="#596173">must still be stated</text>
+  <text x="1514" y="276" font-size="17" font-weight="600" fill="#2453c4" text-anchor="start">weight 0.15</text>
+  <rect x="40" y="330" width="1810" height="70" rx="16" fill="#2453c4"/>
+  <text x="70" y="374" font-size="21" font-weight="600" fill="#ffffff" text-anchor="start">Total score = weighted sum of the five parts. Used to rank the drafts.</text>
+  <rect x="40" y="430" width="1810" height="150" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="58" y="464" font-size="20" font-weight="600" fill="#14171f">A draft can only be chosen if it also passes these hard checks</text>
+  <text x="58" y="492" font-size="15.5" fill="#596173">numbers and sides score is 1.0   |   certainty at least 0.75   |   meaning at least 0.7   |   simplicity at least 0.1</text>
+  <text x="58" y="515" font-size="15.5" fill="#596173">If no draft passes, the highest total is shown and the page says so.</text>
+  <text x="40" y="614" font-size="14.5" font-weight="400" fill="#596173" text-anchor="start">Source: src/verify.py (WEIGHTS) and src/bestofn.py (acceptable). The omission check is a soft score because the NLI model is noisy on paraphrases.</text>
+</svg>

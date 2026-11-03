@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 430" width="1900" height="430" font-family="Segoe UI, Arial, sans-serif">
+  <title>Pipeline: report to checked patient draft</title>
+  <rect width="1900" height="430" fill="#ffffff"/>
+  <text x="40" y="54" font-size="28" font-weight="600" fill="#14171f" text-anchor="start">How a report becomes a checked patient draft</text>
+  <rect x="40" y="110" width="230" height="170" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="58" y="144" font-size="20" font-weight="600" fill="#14171f">1  Report</text>
+  <text x="58" y="172" font-size="15.5" fill="#596173">Open-i report, pasted text,</text>
+  <text x="58" y="195" font-size="15.5" fill="#596173">or a .txt / .docx / .pdf file</text>
+  <rect x="310" y="110" width="230" height="170" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="328" y="144" font-size="20" font-weight="600" fill="#14171f">2  Parse</text>
+  <text x="328" y="172" font-size="15.5" fill="#596173">Hedge levels, numbers,</text>
+  <text x="328" y="195" font-size="15.5" fill="#596173">left/right, severity words,</text>
+  <text x="328" y="218" font-size="15.5" fill="#596173">finding / impression roles</text>
+  <line x1="274" y1="195" x2="299" y2="195" stroke="#596173" stroke-width="2"/><path d="M308 195 l-11 -6 v12 z" fill="#596173"/>
+  <rect x="580" y="110" width="230" height="170" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="598" y="144" font-size="20" font-weight="600" fill="#14171f">3  Draft</text>
+  <text x="598" y="172" font-size="15.5" fill="#596173">Qwen2.5-1.5B-Instruct</text>
+  <text x="598" y="195" font-size="15.5" fill="#596173">pretrained, not fine-tuned</text>
+  <text x="598" y="218" font-size="15.5" fill="#596173">1 plain + 10 sampled drafts</text>
+  <line x1="544" y1="195" x2="569" y2="195" stroke="#596173" stroke-width="2"/><path d="M578 195 l-11 -6 v12 z" fill="#596173"/>
+  <rect x="850" y="110" width="230" height="170" rx="16" fill="#2453c4" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="868" y="144" font-size="20" font-weight="600" fill="#ffffff">4  Verify</text>
+  <text x="868" y="172" font-size="15.5" fill="#e8eefc">Meaning (NLI), numbers,</text>
+  <text x="868" y="195" font-size="15.5" fill="#e8eefc">sides, hedge level,</text>
+  <text x="868" y="218" font-size="15.5" fill="#e8eefc">simplicity, coverage</text>
+  <line x1="814" y1="195" x2="839" y2="195" stroke="#596173" stroke-width="2"/><path d="M848 195 l-11 -6 v12 z" fill="#596173"/>
+  <rect x="1120" y="110" width="230" height="170" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="1138" y="144" font-size="20" font-weight="600" fill="#14171f">5  Pick</text>
+  <text x="1138" y="172" font-size="15.5" fill="#596173">Best draft that passes the</text>
+  <text x="1138" y="195" font-size="15.5" fill="#596173">hard checks (best-of-N)</text>
+  <line x1="1084" y1="195" x2="1109" y2="195" stroke="#596173" stroke-width="2"/><path d="M1118 195 l-11 -6 v12 z" fill="#596173"/>
+  <rect x="1390" y="110" width="230" height="170" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="1408" y="144" font-size="20" font-weight="600" fill="#14171f">6  Explain</text>
+  <text x="1408" y="172" font-size="15.5" fill="#596173">Fixed 95-term glossary adds</text>
+  <text x="1408" y="195" font-size="15.5" fill="#596173">plain-language term notes</text>
+  <text x="1408" y="218" font-size="15.5" fill="#596173">(display only)</text>
+  <line x1="1354" y1="195" x2="1379" y2="195" stroke="#596173" stroke-width="2"/><path d="M1388 195 l-11 -6 v12 z" fill="#596173"/>
+  <rect x="1660" y="110" width="230" height="170" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
+  <text x="1678" y="144" font-size="20" font-weight="600" fill="#14171f">7  Show</text>
+  <text x="1678" y="172" font-size="15.5" fill="#596173">3D body map, flagged words,</text>
+  <text x="1678" y="195" font-size="15.5" fill="#596173">findings explorer</text>
+  <line x1="1624" y1="195" x2="1649" y2="195" stroke="#596173" stroke-width="2"/><path d="M1658 195 l-11 -6 v12 z" fill="#596173"/>
+  <text x="40" y="340" font-size="17" font-weight="400" fill="#596173" text-anchor="start">The language model only writes drafts. The checker is our own code: it never edits a draft, it scores it and flags what changed.</text>
+  <text x="40" y="372" font-size="17" font-weight="400" fill="#596173" text-anchor="start">No model was trained or fine-tuned. Steps 2, 4, 5 and 6 are rules plus a pretrained entailment model (DeBERTa NLI).</text>
+</svg>
