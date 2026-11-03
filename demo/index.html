@@ -154,8 +154,6 @@
 
   /* right-hand column: verdict first, then the score cards */
   .side { display: grid; gap: var(--sp-3); min-width: 0; }
-  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
-  .stats .wide { grid-column: 1 / -1; }
   .stat .head { display: flex; align-items: center; gap: var(--sp-2); color: var(--muted); font-size: var(--fs-sm); }
   .stat .val { font-size: var(--fs-xl); letter-spacing: -.03em; font-weight: 500; line-height: var(--lh-tight); margin: var(--sp-4) 0 var(--sp-3); }
   .stat .val small { font-size: var(--fs-base); color: var(--muted); letter-spacing: 0; margin-left: 2px; }
@@ -176,7 +174,7 @@
 
   /* findings list */
   .findings { margin-top: var(--sp-5); }
-  .findings h2, .compare-h { font-size: var(--fs-lg); font-weight: 500; letter-spacing: -.02em; }
+  .findings h2 { font-size: var(--fs-lg); font-weight: 500; letter-spacing: -.02em; }
   .findings .sub { max-width: 80ch; }
   .find-list { list-style: none; margin: var(--sp-4) 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: var(--sp-3); }
   .find { background: var(--card-2); border-radius: var(--r-md); padding: var(--sp-3) var(--sp-4); border: 2px solid transparent; }
@@ -194,10 +192,7 @@
 
   /* comparison */
   .verdict { font-size: var(--fs-md); font-weight: 600; line-height: 1.35; margin: 0; padding: var(--sp-4); border-radius: var(--r-lg); background: var(--card); box-shadow: var(--shadow); }
-  .compare-h { margin: var(--sp-6) 0 var(--sp-4); }
-  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-3); }
   .col { background: var(--card); border: 2px solid transparent; border-radius: var(--r-lg); padding: var(--sp-4); min-width: 0; box-shadow: var(--shadow); }
-  .grid .col:nth-child(3) { border-color: var(--accent); }
   .col h3 { font-size: var(--fs-md); font-weight: 600; letter-spacing: -.01em; }
   .col .tagline { color: var(--muted); font-size: var(--fs-sm); margin: 2px 0 var(--sp-3); }
   .sent { margin: 0 0 var(--sp-2); padding: 2px 0 2px var(--sp-3); border-left: 3px solid transparent; overflow-wrap: anywhere; }
@@ -293,14 +288,9 @@
   @media (max-width: 1279px) {
     .board { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     .side { grid-column: 1 / -1; }
-    .stats { grid-template-columns: repeat(4, 1fr); }
-    .stats .wide { grid-column: span 2; }
   }
   @media (max-width: 1000px) {
     .frame { padding: var(--sp-5) var(--sp-4) var(--sp-6); }
-    .grid { grid-template-columns: 1fr; }
-    .stats { grid-template-columns: 1fr 1fr; }
-    .stats .wide { grid-column: 1 / -1; }
   }
   @media (max-width: 760px) {
     .shell { padding: var(--sp-3); }
@@ -309,10 +299,8 @@
     .pills { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding: var(--sp-2); margin: calc(var(--sp-2) * -1); order: 3; }
     .pill { flex: none; padding: 0 var(--sp-4); }
     .intro h1 { margin-top: var(--sp-5); }
-    .stats { grid-template-columns: 1fr 1fr; }
     .bar { grid-template-columns: 112px 1fr 36px; }
   }
-  @media (max-width: 420px) { .stats { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -325,7 +313,6 @@
     <nav class="rail-nav">
       <a class="rl" href="#top" title="Overview" aria-label="Overview"><svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true" focusable="false"><rect x="2" y="2" width="6" height="6" rx="1.5"/><rect x="10" y="2" width="6" height="6" rx="1.5"/><rect x="2" y="10" width="6" height="6" rx="1.5"/><rect x="10" y="10" width="6" height="6" rx="1.5"/></svg></a>
       <a class="rl" href="#findings" title="Findings" aria-label="Findings"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M3 4.5h12M3 9h12M3 13.5h8"/></svg></a>
-      <a class="rl" href="#compare" title="Comparison" aria-label="Comparison"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><rect x="2.5" y="3" width="5" height="12" rx="1.5"/><rect x="10.5" y="3" width="5" height="12" rx="1.5"/></svg></a>
       <a class="rl" href="#heldout" title="Results on 120 reports" aria-label="Results on 120 reports"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M3 15V9M7.5 15V4M12 15v-6M16 15H2"/></svg></a>
     </nav>
   </aside>
@@ -438,10 +425,13 @@
         </div>
         <div class="verdict" id="verdict" hidden></div>
         <div id="outpanel" class="outpanel"><p class="muted">Pick an example or run a check to see the draft and what the checker flagged.</p></div>
+        <div class="key" role="group" aria-label="Legend">
+          <span><mark class="flag">word</mark> checker flag (hover or focus for why)</span>
+          <span><span class="h-possible">possible</span> / <span class="h-likely">likely</span> / <span class="h-unlikely">unlikely</span> hedge level</span>
+          <span>red bar on the left: sentence not supported by the report</span>
+        </div>
       </section>
 
-      <h2 class="sr-only" id="statsh">Scores for the checked draft</h2>
-      <section class="stats" id="stats" aria-labelledby="statsh"></section>
     </div>
   </div>
 
@@ -451,16 +441,6 @@
     <ol class="find-list" id="findlist"></ol>
   </section>
 
-  <h2 class="compare-h" id="compare">Original, plain draft and checked draft side by side</h2>
-  <div class="grid" id="grid">
-    <div class="empty">Pick an example above.</div>
-  </div>
-
-  <div class="key" role="group" aria-label="Legend">
-    <span><mark class="flag">word</mark> checker flag (hover or focus for why)</span>
-    <span><span class="h-possible">possible</span> / <span class="h-likely">likely</span> / <span class="h-unlikely">unlikely</span> hedge level</span>
-    <span>red bar on the left: sentence not supported by the report</span>
-  </div>
 
   <section class="card foot-card" id="heldout" hidden tabindex="0" role="region" aria-labelledby="heldh"><h2 id="heldh">Comparison on 120 unseen reports</h2><div id="summary"></div></section>
   </main>
@@ -719,47 +699,8 @@ function renderFindings() {
   document.querySelectorAll(".rchip").forEach((c) => (c.onclick = () => { setActive(c.dataset.r); }));
 }
 
-/* ---------- score cards ---------- */
-const ICON = "";
+/* ---------- score tags ---------- */
 const tagFor = (v) => (v >= 0.75 ? ["good", "Good"] : v >= 0.5 ? ["warn", "Check"] : ["bad", "Low"]);
-function statCard(key, label, ex) {
-  const v = ex.selected.explain.score[key], p = ex.plain.explain.score[key], [cls, word] = tagFor(v);
-  return `<article class="card stat"><div class="head">${ICON}<h3 style="margin:0;font:inherit">${label}</h3></div>` +
-    `<div class="val">${v.toFixed(2)}<small>/ 1</small></div><div class="foot"><span class="tag ${cls}">${word}</span><span>plain ${p.toFixed(2)}</span></div></article>`;
-}
-function gaugeSvg(v) {
-  const n = 28, on = Math.round(Math.max(0, Math.min(1, v)) * n);
-  let t = "";
-  for (let i = 0; i < n; i++) {
-    const a = ((200 - (i * 220) / (n - 1)) * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
-    t += `<line x1="${(110 + 70 * c).toFixed(1)}" y1="${(105 - 70 * s).toFixed(1)}" x2="${(110 + 92 * c).toFixed(1)}" y2="${(105 - 92 * s).toFixed(1)}" stroke="${i < on ? scoreColor(v) : "var(--bar)"}" stroke-width="5" stroke-linecap="round"/>`;
-  }
-  return `<svg class="gauge" viewBox="0 0 220 130" aria-hidden="true" focusable="false">${t}</svg>`;
-}
-function chartSvg(sents) {
-  const n = sents.length, W = 300, step = (W - 16) / Math.max(n, 1), bw = Math.min(26, step * 0.62);
-  const bars = sents.map((s, i) => {
-    const v = Math.max(0, Math.min(1, s.support)), h = 6 + v * 74, x = 8 + i * step + (step - bw) / 2;
-    const bad = s.flags.some((f) => f.kind === "unsupported");
-    const fill = bad ? "var(--bad)" : v < 0.75 ? "var(--warn)" : "var(--bar-strong)";
-    return `<rect class="sbar" x="${x.toFixed(1)}" y="${(88 - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="${Math.min(6, bw / 2)}" fill="${fill}"/>` +
-      (n <= 12 ? `<text x="${(x + bw / 2).toFixed(1)}" y="104" text-anchor="middle" font-size="11" fill="var(--muted)">${i + 1}</text>` : "");
-  }).join("");
-  const label = "Support from the report for each sentence of the checked draft: " + sents.map((s, i) => `${i + 1}: ${Math.round(s.support * 100)}%`).join(", ");
-  return `<svg class="chart-svg" viewBox="0 0 300 110" role="img" aria-label="${esc(label)}">${bars}</svg>`;
-}
-function renderStats(ex) {
-  const sc = ex.selected.explain.score, pl = ex.plain.explain.score, sents = ex.selected.explain.sentences;
-  const avg = sents.length ? sents.reduce((a, s) => a + s.support, 0) / sents.length : 0;
-  const [cls, word] = tagFor(sc.total);
-  $("stats").innerHTML = statCard("entail", "Meaning kept", ex) + statCard("numbers", "Numbers & sides", ex) +
-    `<article class="card stat wide"><div class="head">${ICON}<h3 style="margin:0;font:inherit">Overall score</h3></div><div class="gauge-wrap">${gaugeSvg(sc.total)}` +
-    `<div class="gauge-val">${sc.total.toFixed(2)}</div><div class="gauge-sub"><span class="tag ${cls}">${word}</span> &middot; plain draft ${pl.total.toFixed(2)}</div>` +
-    `<div class="mini"><span>Certainty kept <b>${sc.certainty.toFixed(2)}</b></span><span>Plainer wording <b>${sc.simplicity.toFixed(2)}</b></span></div></div></article>` +
-    `<article class="card stat chart wide"><div class="head"><h3 style="margin:0;font:inherit;color:var(--ink);font-weight:600">Sentence support</h3></div>` +
-    `<div class="big">${Math.round(avg * 100)}<small> % average</small></div>${chartSvg(sents)}` +
-    `<p class="cap">Taller bar = more support from the report. Red = unsupported, amber = weak. Numbers under the bars are sentence numbers in the checked draft.</p></article>`;
-}
 
 /* ---------- comparison columns (unchanged logic) ---------- */
 function sourceColumn(ex) {
@@ -808,20 +749,17 @@ let swapCtx = null;
 function swapIn() {
   swapCtx = gsap.context(() => {
     const enter = (sel, stagger) => { const t = document.querySelectorAll(sel); if (t.length) gsap.from(t, { opacity: 0, y: 8, duration: 0.3, ease: "power2.out", stagger, clearProps: "opacity,transform" }); };
-    enter("#grid .col", 0.06); enter("#stats .stat", { amount: 0.25 }); enter("#findlist .find", { amount: 0.25 }); enter("#verdict", 0);
-    const fills = document.querySelectorAll("#grid .bar .fill");
+    enter("#outpanel .col", 0.06); enter("#findlist .find", { amount: 0.25 }); enter("#verdict", 0);
+    const fills = document.querySelectorAll("#outpanel .bar .fill");
     if (fills.length) gsap.fromTo(fills, { xPercent: -100, x: 0 }, { xPercent: (i, el) => -(1 - +el.style.getPropertyValue("--v")) * 100, x: 0, duration: 0.6, ease: "power2.out", stagger: 0.04, clearProps: "transform" });
-    const sb = document.querySelectorAll("#stats .sbar");
-    if (sb.length) gsap.from(sb, { scaleY: 0, transformOrigin: "50% 100%", duration: 0.45, ease: "power2.out", stagger: { amount: 0.25 }, clearProps: "transform" });
   });
 }
 
 /* ---------- right column: the draft chosen with the tabs, with its flags ---------- */
-let outTab = 2;
+let outTab = 2, columns = [];
 function syncOut() {
   [0, 1, 2].forEach((i) => $("outTab" + i).setAttribute("aria-pressed", String(i === outTab)));
-  const col = [...$("grid").children].filter((e) => e.classList.contains("col"))[outTab];
-  if (col) $("outpanel").innerHTML = col.outerHTML;
+  if (columns[outTab]) $("outpanel").innerHTML = columns[outTab];
 }
 const readFileInto = (file) => {
   if (!file) return;
@@ -838,11 +776,10 @@ function render(ex) {
   const changed = current !== ex;                // entrance only when a different report is shown
   if (swapCtx) { swapCtx.revert(); swapCtx = null; }
   current = ex;
-  analyse(ex); renderMarkers(); renderFindings(); renderStats(ex);
+  analyse(ex); renderMarkers(); renderFindings();
   if (keep && regions.has(keep)) setActive(keep, true); else renderCaption();
-  $("grid").innerHTML = sourceColumn(ex) +
-    outputColumn("Plain draft", "One draft, no checking", ex.plain) +
-    outputColumn("Checked draft", ex.n_candidates ? `Best of ${ex.n_candidates} drafts, picked by the checker` : "Picked by the checker", ex.selected);
+  columns = [sourceColumn(ex), outputColumn("Plain draft", "One draft, no checking", ex.plain),
+    outputColumn("Checked draft", ex.n_candidates ? `Best of ${ex.n_candidates} drafts, picked by the checker` : "Picked by the checker", ex.selected)];
   syncOut();
   const a = ex.plain.explain.score.total, b = ex.selected.explain.score.total;
   const same = ex.plain.text === ex.selected.text;
@@ -859,8 +796,8 @@ function pick(i) {
   render(examples[i]);
 }
 let running = false;
-const setBusy = (on) => ["grid", "stats", "findings"].forEach((id) => (on ? $(id).setAttribute("aria-busy", "true") : $(id).removeAttribute("aria-busy")));
-const RESULT_IDS = ["grid", "stats", "findings"];
+const setBusy = (on) => ["outpanel", "findings"].forEach((id) => (on ? $(id).setAttribute("aria-busy", "true") : $(id).removeAttribute("aria-busy")));
+const RESULT_IDS = ["outpanel", "findings"];
 function dimResults(on, instant) {
   const els = RESULT_IDS.map($);
   if (window.gsap) gsap.killTweensOf(els);
@@ -953,7 +890,7 @@ async function init() {
     examples = [];
     const msg = "Examples could not load. Paste a report instead.";
     $("chips").textContent = msg;
-    const empty = $("grid").querySelector(".empty"); if (empty) empty.textContent = msg;
+    $("outpanel").innerHTML = `<p class="muted">${msg}</p>`;
   }
   $("chips").innerHTML = !examples.length ? $("chips").innerHTML : examples.map((e, i) => `<button class="chip" type="button" aria-pressed="false" data-i="${i}">${esc(e.title)}</button>`).join("");
   document.querySelectorAll(".chip").forEach((c) => (c.onclick = () => pick(+c.dataset.i)));
