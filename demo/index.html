@@ -240,6 +240,9 @@
   .rl:hover { background: var(--card-2); color: var(--ink); }
   .rl svg { width: 20px; height: 20px; }
   .top { align-items: flex-start; gap: var(--sp-5); }
+  .hyper { display: inline-flex; cursor: default; font-family: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace; letter-spacing: 0; text-transform: uppercase; }
+  .hyper .hl { display: inline-block; }
+  .hyper .hl.sp { width: .5em; }
   .top-title h1 { font-size: var(--fs-xl); line-height: var(--lh-tight); letter-spacing: -.03em; font-weight: 500; margin: var(--sp-1) 0 var(--sp-2); }
   .crumbs { font-size: var(--fs-sm); color: var(--muted); }
   .board { grid-template-columns: minmax(0, 1.25fr) minmax(340px, .85fr); gap: var(--sp-6); margin-top: var(--sp-5); }
@@ -342,7 +345,7 @@
   <header class="top" id="top">
     <div class="top-title">
       <p class="crumbs">Report Check <span aria-hidden="true">&rsaquo;</span> Checker</p>
-      <h1>Report check</h1>
+      <h1 id="title" data-hyper>Report check</h1>
       <p class="lead">Does the patient version still say what the report said?</p>
     </div>
   </header>
@@ -956,8 +959,37 @@ function wireInput() {
   ta.addEventListener("dragleave", () => ta.classList.remove("drop"));
   ta.addEventListener("drop", (e) => { e.preventDefault(); ta.classList.remove("drop"); readFileInto(e.dataTransfer.files[0]); });
 }
+
+/* ---------- hyper text: the title scrambles through A-Z and settles left to right (on load and on hover) ---------- */
+function hyperText(el, { duration = 800 } = {}) {
+  const text = el.textContent.trim(), A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  el.textContent = "";
+  const real = document.createElement("span"); real.className = "sr-only"; real.textContent = text;
+  const box = document.createElement("span"); box.className = "hyper"; box.setAttribute("aria-hidden", "true");
+  const letters = [...text].map((ch) => {
+    const s = document.createElement("span"); s.className = "hl" + (ch === " " ? " sp" : ""); s.textContent = ch === " " ? "\u00a0" : ch;
+    box.append(s); return s;
+  });
+  el.append(real, box);
+  let raf = 0;
+  const run = () => {
+    if (reduce()) return;                       // reduced motion: the title just stays put
+    cancelAnimationFrame(raf);
+    const start = performance.now();
+    const tick = (now) => {
+      const done = ((now - start) / duration) * text.length;   // letters before this index are settled
+      letters.forEach((s, i) => { if (text[i] !== " ") s.textContent = i <= done ? text[i] : A[Math.floor(Math.random() * 26)]; });
+      if (done < text.length) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    if (canAnim()) gsap.fromTo(letters, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out", stagger: 0.02, clearProps: "opacity,transform" });
+  };
+  box.addEventListener("mouseenter", run);
+  run();
+}
 async function init() {
   wireInput();
+  hyperText($("title"));
   $("quick").onclick = () => live("quick"); $("best").onclick = () => live("best");
   $("glossToggle").onchange = () => current && render(current);
   const setMode = (m) => { mapMode = m; syncMapMode(); if (current) render(current); };
