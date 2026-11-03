@@ -31,7 +31,7 @@ function glassSkin() {
   });
 }
 
-export async function createBodyViewer(container, { onSelect = () => {}, onFail = () => {} } = {}) {
+export async function createBodyViewer(container, { onSelect = () => {}, onFail = () => {}, onFrame = () => {} } = {}) {
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
@@ -144,6 +144,10 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
   // ---------- pins ----------
   const v3 = new THREE.Vector3();
   function updatePins() {
+    updatePinsCore();
+    onFrame();
+  }
+  function updatePinsCore() {
     const w = container.clientWidth, h = container.clientHeight;
     const center = controls.target, camDir = camera.getWorldDirection(new THREE.Vector3());
     const centerDepth = center.clone().sub(camera.position).dot(camDir);

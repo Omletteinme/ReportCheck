@@ -96,6 +96,7 @@
   #status, #tick { color: var(--muted); font-size: var(--fs-sm); }
   #status.err { color: var(--bad); }
   textarea[aria-invalid="true"] { border-color: var(--bad); }
+  textarea.drop { outline: 2px dashed var(--accent); outline-offset: 2px; }
   .note { color: var(--muted); font-size: var(--fs-sm); margin-top: var(--sp-3); }
 
   /* body map */
@@ -251,6 +252,60 @@
   .foot-card { margin-top: var(--sp-6); overflow-x: auto; }
   .foot-card h2 { font-size: var(--fs-lg); font-weight: 500; letter-spacing: -.02em; margin-bottom: var(--sp-1); }
 
+
+  /* app layout (reference structure): icon rail, stage with callouts, input and output column */
+  .shell { max-width: 1600px; }
+  .frame { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--sp-5); padding: var(--sp-5); }
+  .content { min-width: 0; }
+  .rail { position: sticky; top: var(--sp-5); align-self: start; display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); width: 64px; padding: var(--sp-3) 0; background: var(--card); border-radius: var(--r-pill); box-shadow: var(--shadow); }
+  .brand-mark { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: var(--on-accent); text-decoration: none; }
+  .brand-mark svg { width: 22px; height: 22px; }
+  .rail-nav { display: flex; flex-direction: column; gap: var(--sp-2); }
+  .rl { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: var(--muted); text-decoration: none; }
+  .rl:hover { background: var(--card-2); color: var(--ink); }
+  .rl svg { width: 20px; height: 20px; }
+  .top { align-items: flex-start; gap: var(--sp-5); }
+  .top-title h1 { font-size: var(--fs-xl); line-height: var(--lh-tight); letter-spacing: -.03em; font-weight: 500; margin: var(--sp-1) 0 var(--sp-2); }
+  .crumbs { font-size: var(--fs-sm); color: var(--muted); }
+  .top .proto-note { margin: 0; max-width: 52ch; }
+  .board { grid-template-columns: minmax(0, 1.25fr) minmax(340px, .85fr); gap: var(--sp-6); margin-top: var(--sp-5); }
+  .map { text-align: center; position: sticky; top: var(--sp-5); align-self: start; }
+  #upload { flex: 0 0 auto; min-height: 36px; padding: 0 var(--sp-4); }
+  .map-tools { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-3); }
+  .map-tools .seg { margin: 0; }
+  .stage { position: relative; margin-top: var(--sp-2); }
+  .stage .figure { --fh: clamp(360px, 62vh, 720px); margin-top: var(--sp-2); }
+  .leaders, .callouts { position: absolute; inset: 0; pointer-events: none; }
+  .leaders { width: 100%; height: 100%; overflow: visible; }
+  .leaders line { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 4; }
+  .leaders circle { fill: var(--accent); }
+  .co { position: absolute; width: clamp(150px, 26%, 200px); pointer-events: auto; display: block; text-align: left; font: inherit; color: var(--ink); cursor: pointer; border: 0; background: var(--card); border-radius: var(--r-md); box-shadow: var(--shadow-2); padding: var(--sp-3); }
+  .co[data-side="l"] { left: 0; }
+  .co[data-side="r"] { right: 0; }
+  .co:hover { background: var(--card-2); }
+  .co[aria-pressed="true"] { outline: 2px solid var(--accent); }
+  .co-h { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); font-weight: 600; }
+  .co-h .g { flex: none; }
+  .co p { margin-top: var(--sp-1); font-size: var(--fs-xs); line-height: 1.4; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .side-col { display: grid; gap: var(--sp-4); align-content: start; min-width: 0; }
+  .panel-h { font-size: var(--fs-md); font-weight: 600; letter-spacing: -.01em; margin-bottom: var(--sp-3); }
+  .res-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+  .res-head .panel-h { margin: 0; }
+  .res-head .seg { margin: 0; }
+  .outpanel .col { box-shadow: none; padding: 0; background: none; }
+  .controls .row + .row { margin-top: var(--sp-3); }
+  @media (max-width: 1100px) {
+    .map { position: static; }
+    .board { grid-template-columns: 1fr; }
+    .leaders, .callouts { display: none; }
+  }
+  @media (max-width: 760px) {
+    .frame { grid-template-columns: 1fr; padding: var(--sp-4); }
+    .rail { position: static; flex-direction: row; width: auto; justify-self: stretch; justify-content: space-between; padding: var(--sp-2) var(--sp-3); }
+    .rail-nav { flex-direction: row; }
+    .top { flex-direction: column; }
+  }
+
   /* responsive */
   @media (max-width: 1279px) {
     .board { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
@@ -280,59 +335,47 @@
 <body>
 <div class="shell">
 <div class="frame">
-  <header class="top" id="top">
-    <a class="brand" href="#top">
-      <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="22" height="22" rx="8"/><path d="M14 8v12M8 14h12"/></svg>
-      Report Check
+  <aside class="rail" aria-label="Page sections">
+    <a class="brand-mark" href="#top" aria-label="Report Check, back to the top" title="Report Check">
+      <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 7v14M7 14h14"/></svg>
     </a>
-    <nav class="pills" aria-label="Page sections">
-      <a class="pill" href="#top"><svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true" focusable="false"><rect x="2" y="2" width="6" height="6" rx="1.5"/><rect x="10" y="2" width="6" height="6" rx="1.5"/><rect x="2" y="10" width="6" height="6" rx="1.5"/><rect x="10" y="10" width="6" height="6" rx="1.5"/></svg>Overview</a>
-      <a class="pill" href="#findings">Findings</a>
-      <a class="pill" href="#compare">Comparison</a>
-      <a class="pill" href="#heldout">Results</a>
+    <nav class="rail-nav">
+      <a class="rl" href="#top" title="Overview" aria-label="Overview"><svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true" focusable="false"><rect x="2" y="2" width="6" height="6" rx="1.5"/><rect x="10" y="2" width="6" height="6" rx="1.5"/><rect x="2" y="10" width="6" height="6" rx="1.5"/><rect x="10" y="10" width="6" height="6" rx="1.5"/></svg></a>
+      <a class="rl" href="#findings" title="Findings" aria-label="Findings"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M3 4.5h12M3 9h12M3 13.5h8"/></svg></a>
+      <a class="rl" href="#compare" title="Comparison" aria-label="Comparison"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><rect x="2.5" y="3" width="5" height="12" rx="1.5"/><rect x="10.5" y="3" width="5" height="12" rx="1.5"/></svg></a>
+      <a class="rl" href="#heldout" title="Results on 120 reports" aria-label="Results on 120 reports"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M3 15V9M7.5 15V4M12 15v-6M16 15H2"/></svg></a>
     </nav>
+  </aside>
+
+  <div class="content">
+  <header class="top" id="top">
+    <div class="top-title">
+      <p class="crumbs">Report Check <span aria-hidden="true">&rsaquo;</span> Checker</p>
+      <h1>Report check</h1>
+      <p class="lead">Does the patient version still say what the report said?</p>
+    </div>
+    <p class="proto-note" role="note"><strong>Prototype.</strong> Pretrained Qwen2.5-1.5B writes the drafts and is <strong>not fine-tuned</strong>. The checker is our own: sentence-level meaning check, numbers and sides, hedge level, readability.</p>
   </header>
 
   <main>
   <div class="board">
-    <section class="intro" aria-label="Report input">
-      <h1>Report check</h1>
-      <p class="lead">Does the patient version still say what the report said?</p>
-      <p class="sub">Paste a radiology report or pick an example. The checker marks changed hedges, wrong numbers or sides, added claims, and unsupported sentences.</p>
-      <p class="proto-note" role="note"><strong>Prototype.</strong> Pretrained Qwen2.5-1.5B writes the drafts and is <strong>not fine-tuned</strong>. The checker is our own: sentence-level meaning check, numbers and sides, hedge level, readability.</p>
-
-      <div class="card controls">
-        <p class="label" id="exlabel">Examples</p>
-        <div class="chips" id="chips" role="group" aria-labelledby="exlabel"></div>
-        <label class="label" for="report" style="display:block">Radiology report</label>
-        <textarea id="report" placeholder="FINDINGS: … IMPRESSION: …" spellcheck="false" autocomplete="off" aria-describedby="status"></textarea>
-        <div class="row">
-          <button class="cta" id="quick" type="button"><span>Quick check <small>about 30 s</small></span><span class="cta-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></span></button>
-          <button class="ghost" id="best" type="button">Best of 8 <small>about 2-3 min</small></button>
-        </div>
-        <div id="runbar" aria-hidden="true"></div>
-        <div class="row">
-          <label class="toggle"><input type="checkbox" id="glossToggle" checked> Explain medical terms</label>
-          <span id="status" role="status" aria-live="polite"></span><span id="tick" aria-hidden="true"></span>
-        </div>
-        <p class="note">Examples are pre-computed so nothing waits on the model. They were picked to show different cases, not to be representative. The table at the bottom has the real comparison.</p>
-      </div>
-    </section>
-
     <section class="map" aria-labelledby="maph">
-      <h2 id="maph">Where each statement points</h2>
-      <div class="seg" role="group" aria-label="Which text to place on the body">
-        <button type="button" class="seg-b" id="modePatient" aria-pressed="true">Patient version</button>
-        <button type="button" class="seg-b" id="modeOriginal" aria-pressed="false">Original report</button>
+      <h2 class="sr-only" id="maph">Where each statement points</h2>
+      <div class="map-tools">
+        <div class="seg" role="group" aria-label="Which text to place on the body">
+          <button type="button" class="seg-b" id="modePatient" aria-pressed="true">Patient version</button>
+          <button type="button" class="seg-b" id="modeOriginal" aria-pressed="false">Original report</button>
+        </div>
+        <div class="seg pending" id="viewSeg" role="group" aria-label="How much of the body to show">
+          <button type="button" class="seg-b" id="viewChest" aria-pressed="true">Chest</button>
+          <button type="button" class="seg-b" id="viewBody" aria-pressed="false">Whole body</button>
+        </div>
       </div>
       <p class="hint" id="maphint"></p>
-      <div class="seg pending" id="viewSeg" role="group" aria-label="How much of the body to show">
-        <button type="button" class="seg-b" id="viewChest" aria-pressed="true">Chest</button>
-        <button type="button" class="seg-b" id="viewBody" aria-pressed="false">Whole body</button>
-      </div>
-      <div class="figure" id="figure" role="group" aria-label="Body figure with markers for each place the report mentions">
-        <div class="loading3d" id="loading3d">Loading 3D body…</div>
-        <svg class="body-svg" id="fallbackSvg" hidden viewBox="0 0 300 760" aria-hidden="true" focusable="false">
+      <div class="stage" id="stage">
+        <div class="figure" id="figure" role="group" aria-label="Body figure with markers for each place the report mentions">
+          <div class="loading3d" id="loading3d">Loading 3D body…</div>
+          <svg class="body-svg" id="fallbackSvg" hidden viewBox="0 0 300 760" aria-hidden="true" focusable="false">
           <defs>
             <linearGradient id="skin" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="760"><stop offset="0" stop-color="#f4c4ad"/><stop offset=".55" stop-color="#e29679"/><stop offset="1" stop-color="#c8694b"/></linearGradient>
             <radialGradient id="shine" gradientUnits="userSpaceOnUse" cx="135" cy="190" r="300"><stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
@@ -366,6 +409,9 @@
           <path d="M103 266C120 248 140 250 150 262C160 250 180 248 197 266" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="2" stroke-linecap="round"/>
           <circle cx="150" cy="322" r="2.5" fill="#fff" fill-opacity=".55"/>
         </svg>
+        </div>
+        <svg class="leaders" id="leaders" aria-hidden="true" focusable="false"></svg>
+        <div class="callouts" id="callouts"></div>
       </div>
       <div class="legend" role="group" aria-label="Marker key">
         <span><i class="g finding" aria-hidden="true">!</i>Finding</span>
@@ -377,8 +423,40 @@
       <div class="caption" id="caption" aria-live="polite"></div>
     </section>
 
-    <div class="side">
-      <div class="verdict" id="verdict" hidden></div>
+    <div class="side-col">
+      <section class="card controls" aria-label="Report input">
+        <h2 class="panel-h">Report</h2>
+        <p class="label" id="exlabel">Examples</p>
+        <div class="chips" id="chips" role="group" aria-labelledby="exlabel"></div>
+        <label class="label" for="report" style="display:block">Paste, type or drop a radiology report</label>
+        <textarea id="report" placeholder="FINDINGS: … IMPRESSION: …" spellcheck="false" autocomplete="off" aria-describedby="status"></textarea>
+        <div class="row">
+          <button class="ghost" id="upload" type="button">Upload .txt</button>
+          <input type="file" id="fileIn" accept=".txt,text/plain" hidden>
+          <label class="toggle"><input type="checkbox" id="glossToggle" checked> Explain medical terms</label>
+        </div>
+        <div class="row">
+          <button class="cta" id="quick" type="button"><span>Quick check <small>about 30 s</small></span><span class="cta-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></span></button>
+          <button class="ghost" id="best" type="button">Best of 8 <small>about 2-3 min</small></button>
+        </div>
+        <div id="runbar" aria-hidden="true"></div>
+        <div class="row"><span id="status" role="status" aria-live="polite"></span><span id="tick" aria-hidden="true"></span></div>
+        <p class="note">Examples are pre-computed so nothing waits on the model. They were picked to show different cases, not to be representative. The table at the bottom has the real comparison.</p>
+      </section>
+
+      <section class="card result" id="result" aria-labelledby="resh">
+        <div class="res-head">
+          <h2 class="panel-h" id="resh">Output and flags</h2>
+          <div class="seg" role="group" aria-label="Which draft to show">
+            <button type="button" class="seg-b" id="outTab2" aria-pressed="true">Checked draft</button>
+            <button type="button" class="seg-b" id="outTab1" aria-pressed="false">Plain draft</button>
+            <button type="button" class="seg-b" id="outTab0" aria-pressed="false">Original</button>
+          </div>
+        </div>
+        <div class="verdict" id="verdict" hidden></div>
+        <div id="outpanel" class="outpanel"><p class="muted">Pick an example or run a check to see the draft and what the checker flagged.</p></div>
+      </section>
+
       <h2 class="sr-only" id="statsh">Scores for the checked draft</h2>
       <section class="stats" id="stats" aria-labelledby="statsh"></section>
     </div>
@@ -390,7 +468,7 @@
     <ol class="find-list" id="findlist"></ol>
   </section>
 
-  <h2 class="compare-h" id="compare">Original, plain draft and checked draft</h2>
+  <h2 class="compare-h" id="compare">Original, plain draft and checked draft side by side</h2>
   <div class="grid" id="grid">
     <div class="empty">Pick an example above.</div>
   </div>
@@ -403,6 +481,7 @@
 
   <section class="card foot-card" id="heldout" hidden tabindex="0" role="region" aria-labelledby="heldh"><h2 id="heldh">Comparison on 120 unseen reports</h2><div id="summary"></div></section>
   </main>
+  </div>
 </div>
 </div>
 
@@ -535,9 +614,11 @@ function syncMapMode() {
   $("fh").textContent = patient ? "Findings in the patient version" : "Findings in the original report";
 }
 
+let calloutsDirty = false;
 let viewer = null, viewerPending = true;   // markers wait for the 3D viewer so the flat fallback never draws on top
 function renderMarkers() {
   if (viewerPending) return;
+  calloutsDirty = true;
   if (!viewer) return renderMarkersSvg();
   viewer.setMarkers([...regions.values()].map((r) => {
     const st = worst(r), n = r.items.length, label = SPOTS[r.id][3];
@@ -565,7 +646,7 @@ async function startViewer() {
   };
   try {
     const { createBodyViewer } = await import("/body3d.js");
-    const v = await createBodyViewer(fig, { onSelect: (id) => setActive(id), onFail: fail });
+    const v = await createBodyViewer(fig, { onSelect: (id) => setActive(id), onFail: fail, onFrame: () => { if (calloutsDirty) buildCallouts(); drawLeaders(); } });
     viewerPending = false;
     if (!v) return;
     viewer = v; fig.classList.add("is3d"); $("loading3d").remove();
@@ -586,6 +667,43 @@ function placeLabels() {
     });
   });
 }
+
+/* ---------- callout cards with dashed leader lines (top four places the text talks about) ---------- */
+const SLOTS = { l: [6, 56], r: [22, 72] };
+function buildCallouts() {
+  calloutsDirty = false;
+  const host = $("callouts");
+  if (!viewer || !regions.size) { host.innerHTML = ""; $("leaders").innerHTML = ""; return; }
+  const fig = $("figure").getBoundingClientRect(), cx = fig.left + fig.width / 2;
+  const top = [...regions.values()].sort((a, b) => b.rank - a.rank || b.items.length - a.items.length).slice(0, 4);
+  const sides = { l: [], r: [] };
+  top.forEach((r) => {
+    const dot = viewer.pinFor(r.id)?.getBoundingClientRect();
+    const side = dot && dot.left + dot.width / 2 < cx ? "l" : "r";
+    (sides[side].length < 2 ? sides[side] : sides[side === "l" ? "r" : "l"]).push(r);
+  });
+  host.innerHTML = ["l", "r"].map((side) => sides[side].map((r, i) => {
+    const st = worst(r), f = findings[r.items[0]], label = SPOTS[r.id][3];
+    const text = f.s.text.replace(/\s+/g, " ").trim();
+    return `<button type="button" class="co ${st}" data-r="${r.id}" data-side="${side}" style="top:${SLOTS[side][i]}%" aria-pressed="${r.id === active}" ` +
+      `aria-label="${esc(label)}: ${r.items.length} ${r.items.length > 1 ? "statements" : "statement"}, ${STATUS_TEXT[st].toLowerCase()}">` +
+      `<span class="co-h"><i class="g ${st}" aria-hidden="true">${GLYPH[st]}</i>${esc(label)}</span><p>${esc(text)}</p></button>`;
+  }).join("")).join("");
+  host.querySelectorAll(".co").forEach((c) => (c.onclick = () => setActive(c.dataset.r)));
+}
+function drawLeaders() {
+  const svg = $("leaders"), st = $("stage").getBoundingClientRect();
+  let h = "";
+  document.querySelectorAll(".co").forEach((c) => {
+    const pin = viewer && viewer.pinFor(c.dataset.r), dot = pin && pin.querySelector(".mk-dot");
+    if (!dot || pin.style.visibility === "hidden") return;
+    const d = dot.getBoundingClientRect(), cr = c.getBoundingClientRect();
+    const x2 = d.left + d.width / 2 - st.left, y2 = d.top + d.height / 2 - st.top;
+    const x1 = (c.dataset.side === "l" ? cr.right : cr.left) - st.left, y1 = cr.top + cr.height / 2 - st.top;
+    h += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/><circle cx="${x2.toFixed(1)}" cy="${y2.toFixed(1)}" r="3"/>`;
+  });
+  svg.innerHTML = h;
+}
 function renderCaption() {
   const el = $("caption");
   if (!findings.length) { el.innerHTML = '<span class="muted">Pick an example or run a check to place the report\'s statements on the body.</span>'; return; }
@@ -604,6 +722,7 @@ function setActive(id, quiet) {
   const on = active ? new Set(regions.get(active).items) : new Set();
   document.querySelectorAll(".find").forEach((li) => li.classList.toggle("on", on.has(+li.dataset.i)));
   document.querySelectorAll(".rchip").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.r === active)));
+  document.querySelectorAll(".co").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.r === active)));
   renderCaption();
   if (!quiet && canAnim() && $("caption").children.length) gsap.fromTo($("caption").children, { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.2, ease: "power1.out", overwrite: true, clearProps: "opacity,transform" });
 }
@@ -713,6 +832,23 @@ function swapIn() {
     if (sb.length) gsap.from(sb, { scaleY: 0, transformOrigin: "50% 100%", duration: 0.45, ease: "power2.out", stagger: { amount: 0.25 }, clearProps: "transform" });
   });
 }
+
+/* ---------- right column: the draft chosen with the tabs, with its flags ---------- */
+let outTab = 2;
+function syncOut() {
+  [0, 1, 2].forEach((i) => $("outTab" + i).setAttribute("aria-pressed", String(i === outTab)));
+  const col = [...$("grid").children].filter((e) => e.classList.contains("col"))[outTab];
+  if (col) $("outpanel").innerHTML = col.outerHTML;
+}
+const readFileInto = (file) => {
+  if (!file) return;
+  if (file.size > 100000) { say("That file is too large. Use a plain text report under 100 KB.", true); return; }
+  file.text().then((t) => {
+    $("report").value = t.trim();
+    document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
+    say("Loaded " + file.name + ". Press Quick check to run it.");
+  });
+};
 let current = null;
 function render(ex) {
   const keep = current === ex ? active : null;   // glossary toggle re-renders the same report: keep the selection
@@ -724,6 +860,7 @@ function render(ex) {
   $("grid").innerHTML = sourceColumn(ex) +
     outputColumn("Plain draft", "One draft, no checking", ex.plain) +
     outputColumn("Checked draft", ex.n_candidates ? `Best of ${ex.n_candidates} drafts, picked by the checker` : "Picked by the checker", ex.selected);
+  syncOut();
   const a = ex.plain.explain.score.total, b = ex.selected.explain.score.total;
   const same = ex.plain.text === ex.selected.text;
   $("verdict").hidden = false;
@@ -800,7 +937,17 @@ function tableFrom(md) {
   return `<table class="summary"><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>` +
     `<p class="note">${esc(md.split("\n").filter((l) => l && !l.startsWith("|") && !l.startsWith("#")).join(" "))}</p>`;
 }
+function wireInput() {
+  [0, 1, 2].forEach((i) => ($("outTab" + i).onclick = () => { outTab = i; syncOut(); }));
+  $("upload").onclick = () => $("fileIn").click();
+  $("fileIn").onchange = (e) => { readFileInto(e.target.files[0]); e.target.value = ""; };
+  const ta = $("report");
+  ta.addEventListener("dragover", (e) => { e.preventDefault(); ta.classList.add("drop"); });
+  ta.addEventListener("dragleave", () => ta.classList.remove("drop"));
+  ta.addEventListener("drop", (e) => { e.preventDefault(); ta.classList.remove("drop"); readFileInto(e.dataTransfer.files[0]); });
+}
 async function init() {
+  wireInput();
   $("quick").onclick = () => live("quick"); $("best").onclick = () => live("best");
   $("glossToggle").onchange = () => current && render(current);
   const setMode = (m) => { mapMode = m; syncMapMode(); if (current) render(current); };
