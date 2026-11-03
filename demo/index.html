@@ -219,7 +219,7 @@
   .sent { margin: 0 0 var(--sp-2); padding: 2px 0 2px var(--sp-3); border-left: 3px solid transparent; overflow-wrap: anywhere; }
   .sent.unsupported { border-left-color: var(--bad); background: color-mix(in srgb, var(--flag-bg) 55%, transparent); }
   mark.flag { position: relative; background: var(--flag-bg); color: inherit; border-bottom: 2px solid var(--bad); border-radius: var(--r-xs); padding: 0 1px; }
-  mark.flag:focus-visible::after { content: attr(data-tip); position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 6; width: max-content; max-width: min(240px, 70vw); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-md); background: var(--ink); color: var(--on-ink); font-size: var(--fs-sm); font-weight: 500; line-height: 1.35; box-shadow: var(--shadow-2); pointer-events: none; }
+  mark.flag:is(:hover, :focus-visible)::after { content: attr(data-tip); position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 6; width: max-content; max-width: min(240px, 70vw); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-md); background: var(--ink); color: var(--on-ink); font-size: var(--fs-sm); font-weight: 500; line-height: 1.35; box-shadow: var(--shadow-2); pointer-events: none; }
   /* hedge level: text stays in ink, the level is the underline style (dotted possible, dashed likely, solid unlikely) */
   .h-unlikely, .h-possible, .h-likely { color: var(--ink); text-decoration-line: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
   .h-possible { text-decoration-style: dotted; text-decoration-color: var(--lvl-possible); }

@@ -156,7 +156,7 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
     }
     for (let it = 0; it < 4; it++) {          // keep pins readable: nudge apart pins that land on top of each other
       for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
-        const a = list[i], b = list[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01, min = 26;
+        const a = list[i], b = list[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01, min = matchMedia("(pointer: coarse)").matches ? 44 : 26;
         if (d < min) { const k = (min - d) / 2 / d; a.x -= dx * k; a.y -= dy * k; b.x += dx * k; b.y += dy * k; }
       }
     }
