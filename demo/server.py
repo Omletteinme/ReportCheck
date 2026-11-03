@@ -3,6 +3,7 @@
 GET  /              the page
 GET  /api/examples  pre-computed examples (demo/examples.json, made by scripts/build_demo.py)
 GET  /api/summary   comparison table on 120 unseen reports (results/final_summary.md)
+POST /api/extract   raw file bytes + X-Filename header (.txt, .docx, .pdf) -> {"text": str, "chars": int}
 POST /api/run       {"report": str, "mode": "quick" | "best"} -> live drafts scored by the verifier
                     quick = baseline draft + structured draft, best of the two (~30 s)
                     best  = best of 10 sampled drafts plus the baseline draft (~2-3 min)
@@ -18,6 +19,7 @@ from urllib.parse import unquote
 ROOT = Path(__file__).resolve().parent.parent
 DEMO = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
+from demo.extract import MAX_BYTES, ExtractError, extract_text  # noqa: E402
 
 PORT = 8000
 STATIC_ROOTS = {"vendor": DEMO / "vendor", "assets": DEMO / "assets"}  # /vendor/... and /assets/...
@@ -113,7 +115,19 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._json(404, {"error": "not found"})
 
+    def _extract(self):
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        if length > MAX_BYTES:
+            return self._json(413, {"error": "That file is larger than 5 MB."})
+        try:
+            text = extract_text(unquote(self.headers.get("X-Filename", "")), self.rfile.read(length))
+        except ExtractError as e:
+            return self._json(400, {"error": str(e)})
+        self._json(200, {"text": text, "chars": len(text)})
+
     def do_POST(self):
+        if self.path == "/api/extract":
+            return self._extract()
         if self.path != "/api/run":
             return self._json(404, {"error": "not found"})
         try:

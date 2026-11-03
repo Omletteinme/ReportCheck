@@ -73,3 +73,6 @@ The BodyParts3D lungs are airway trees only, so each lobe also gets a translucen
     .venv/Scripts/python scripts/eval_bestofn.py --reports final             # GPU, resumable, about 117 s/report (RTX 4060)
     .venv/Scripts/python scripts/eval_bestofn.py --reports final --rescore   # after a verifier change: re-pick from the cache, no generation
 `final` = the 40 held-out reports plus 80 more Open-i reports from the train split (never trained on; say so in the write-up).
+
+## Uploading a report in the demo
+The report box accepts a pasted report or an uploaded/dropped `.txt`, `.docx` or `.pdf` (up to 5 MB; PDFs need a text layer, scanned PDFs are refused; old `.doc` is not supported). Text is extracted by the demo server (`demo/extract.py`, `POST /api/extract`; PDF needs `pypdf`, in requirements.txt). The live checker accepts reports up to 3000 characters.

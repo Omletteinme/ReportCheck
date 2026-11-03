@@ -418,11 +418,11 @@
         <h2 class="panel-h">Report</h2>
         <p class="label" id="exlabel">Examples</p>
         <div class="chips" id="chips" role="group" aria-labelledby="exlabel"></div>
-        <label class="label" for="report" style="display:block">Paste, type or drop a radiology report</label>
+        <label class="label" for="report" style="display:block">Paste, type or drop a radiology report (.txt, .docx, .pdf)</label>
         <textarea id="report" placeholder="FINDINGS: … IMPRESSION: …" spellcheck="false" autocomplete="off" aria-describedby="status"></textarea>
         <div class="row">
-          <button class="ghost" id="upload" type="button">Upload .txt</button>
-          <input type="file" id="fileIn" accept=".txt,text/plain" hidden>
+          <button class="ghost" id="upload" type="button" title="A .txt, .docx or .pdf report">Upload file</button>
+          <input type="file" id="fileIn" accept=".txt,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
           <label class="toggle"><input type="checkbox" id="glossToggle" checked> Explain medical terms</label>
         </div>
         <div class="row">
@@ -831,15 +831,27 @@ function syncOut() {
   [0, 1, 2].forEach((i) => $("outTab" + i).setAttribute("aria-pressed", String(i === outTab)));
   if (columns[outTab]) $("outpanel").innerHTML = columns[outTab];
 }
-const readFileInto = (file) => {
+const UPLOAD_TYPES = [".txt", ".docx", ".pdf"];
+const MAX_REPORT_CHARS = 3000;   // the live checker's limit (demo/server.py)
+async function readFileInto(file) {
   if (!file) return;
-  if (file.size > 100000) { say("That file is too large. Use a plain text report under 100 KB.", true); return; }
-  file.text().then((t) => {
-    $("report").value = t.trim();
+  if (!UPLOAD_TYPES.some((t) => file.name.toLowerCase().endsWith(t))) { say("Upload a .txt, .docx or .pdf file.", true); return; }
+  if (file.size > 5 * 1024 * 1024) { say("That file is larger than 5 MB.", true); return; }
+  say("Reading " + file.name + "…");
+  try {
+    const res = await fetch("/api/extract", { method: "POST", headers: { "X-Filename": encodeURIComponent(file.name) }, body: file });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || res.statusText || "The file could not be read.");
+    $("report").value = data.text;
+    $("report").removeAttribute("aria-invalid");
     document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
-    say("Loaded " + file.name + ". Press Quick check to run it.");
-  });
-};
+    say(data.chars > MAX_REPORT_CHARS
+      ? `Loaded ${file.name}, but it has ${data.chars} characters and the checker takes up to ${MAX_REPORT_CHARS}. Trim it to the report itself.`
+      : "Loaded " + file.name + ". Press Quick check to run it.", data.chars > MAX_REPORT_CHARS);
+  } catch (e) {
+    say(e instanceof TypeError ? "Can't reach the server. Check that it is running." : e.message, true);
+  }
+}
 let current = null;
 function render(ex) {
   const keep = current === ex ? active : null;   // glossary toggle re-renders the same report: keep the selection
