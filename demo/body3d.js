@@ -4,7 +4,6 @@
 //   const viewer = await createBodyViewer(containerEl, { onSelect(regionId) {}, onFail(reason) {} });
 //   viewer.setMarkers([{ id, status: "finding"|"uncertain"|"normal", count, label, aria }]);
 //   viewer.focus(regionId | null);      // camera glide + organ highlight (null = back to overview)
-//   viewer.setBusy(true | false);       // pauses idle motion while the model is generating text
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
@@ -32,7 +31,7 @@ function glassSkin() {
   });
 }
 
-export async function createBodyViewer(container, { onSelect = () => {}, onFail = () => {} } = {}) {
+export async function createBodyViewer(container, { onSelect = () => {}, onFail = () => {}, onFrame = () => {} } = {}) {
   let renderer;
   try {
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "low-power" });
@@ -62,7 +61,19 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
   const rim = new THREE.DirectionalLight(0x9cc2ff, 1.4); rim.position.set(-2, 1, -2.5); scene.add(rim);
   const camera = new THREE.PerspectiveCamera(FOV, 1, 0.05, 20);
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true; controls.dampingFactor = 0.08; controls.enablePan = false;
+  renderer.domElement.style.touchAction = "pan-y pinch-zoom";   // OrbitControls sets "none", which traps page scroll on phones
+  controls.enableDamping = !reduceMotion(); controls.dampingFactor = 0.08; controls.enablePan = false;
+  // wheel zoom must not trap page scroll: zoom only while the pointer is pressed or Ctrl/Meta is held
+  controls.enableZoom = false;
+  let pressed = false, modKey = false;
+  const syncZoom = () => { controls.enableZoom = pressed || modKey; };
+  renderer.domElement.addEventListener("wheel", (e) => { controls.enableZoom = pressed || e.ctrlKey || e.metaKey; }, { capture: true });
+  renderer.domElement.addEventListener("pointerdown", () => { pressed = true; syncZoom(); });
+  addEventListener("pointerup", () => { pressed = false; syncZoom(); });
+  addEventListener("pointercancel", () => { pressed = false; syncZoom(); });
+  addEventListener("keydown", (e) => { if (e.key === "Control" || e.key === "Meta") { modKey = true; syncZoom(); } });
+  addEventListener("keyup", (e) => { if (e.key === "Control" || e.key === "Meta") { modKey = false; syncZoom(); } });
+  addEventListener("blur", () => { pressed = modKey = false; syncZoom(); });
   controls.minPolarAngle = 0.5; controls.maxPolarAngle = Math.PI - 0.5;
 
   const organs = new Map();      // node name -> [materials]
@@ -133,6 +144,10 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
   // ---------- pins ----------
   const v3 = new THREE.Vector3();
   function updatePins() {
+    updatePinsCore();
+    onFrame();
+  }
+  function updatePinsCore() {
     const w = container.clientWidth, h = container.clientHeight;
     const center = controls.target, camDir = camera.getWorldDirection(new THREE.Vector3());
     const centerDepth = center.clone().sub(camera.position).dot(camDir);
@@ -145,13 +160,15 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
     }
     for (let it = 0; it < 4; it++) {          // keep pins readable: nudge apart pins that land on top of each other
       for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
-        const a = list[i], b = list[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01, min = 26;
+        const a = list[i], b = list[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy) || 0.01, min = matchMedia("(pointer: coarse)").matches ? 44 : 26;
         if (d < min) { const k = (min - d) / 2 / d; a.x -= dx * k; a.y -= dy * k; b.x += dx * k; b.y += dy * k; }
       }
     }
     for (const p of list) {
       p.m.el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -50%)`;
       p.m.el.dataset.far = p.far ? "1" : "0";
+      // pins outside the canvas leave the tab order (visibility:hidden)
+      p.m.el.style.visibility = (p.x < 0 || p.x > w || p.y < 0 || p.y > h) ? "hidden" : "";
       // keep the label inside the figure: beside the pin when there is room, else below it, shifted to fit
       const lw = 36 + p.m.labelLen * 6.6;
       const side = w - p.x - 16 >= lw ? "r" : p.x - 16 >= lw ? "l" : "b";
@@ -162,9 +179,13 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
       }
     }
   }
+  let markerSig = "";
   function setMarkers(items) {
     pinLayer.innerHTML = ""; markers = new Map();
-    for (const it of items) {
+    const sigParts = [];
+    // tab order follows the picture: top of the body first
+    const ordered = [...items].sort((a, b) => ((anatomy.regions[b.id]?.anchor[1] ?? 0) - (anatomy.regions[a.id]?.anchor[1] ?? 0)));
+    for (const it of ordered) {
       const reg = anatomy.regions[it.id];
       if (!reg) continue;
       const el = document.createElement("button");
@@ -176,9 +197,12 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
         (it.count > 1 ? `<span class="mk-count" aria-hidden="true">${it.count}</span>` : "");
       el.onclick = () => onSelect(it.id);
       pinLayer.append(el);
+      sigParts.push(it.id + ":" + it.status);
       markers.set(it.id, { el, anchor: reg.anchor, labelLen: it.label.replace(/&[a-z#0-9]+;/g, "x").length + (it.count > 1 ? 3 : 0) });
     }
-    if (window.gsap && !reduceMotion()) gsap.fromTo(pinLayer.querySelectorAll(".mk-dot"), { scale: 0.3, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, stagger: 0.04, ease: "back.out(2)", overwrite: true, clearProps: "scale,opacity" });
+    const sig = sigParts.join("|"), changed = sig !== markerSig;   // same pins as before: no replay
+    markerSig = sig;
+    if (changed && window.gsap && !reduceMotion()) gsap.fromTo(pinLayer.querySelectorAll(".mk-dot"), { scale: 0.3, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, stagger: { amount: 0.3 }, ease: "back.out(1.2)", overwrite: true, clearProps: "scale,opacity" });
     wake();
   }
 
@@ -203,7 +227,10 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
       if (window.gsap && !reduceMotion()) gsap.to(m, { ...to, duration: 0.5, ease: "power2.out", overwrite: "auto", onUpdate: () => wake(600) });
       else Object.assign(m, to);
     }
-    if (skin && window.gsap) gsap.to(skin.uniforms.uOpacity, { value: on ? 0.35 : 1, duration: 0.5, overwrite: "auto", onUpdate: () => wake(600) });
+    if (skin) {
+      if (window.gsap && !reduceMotion()) gsap.to(skin.uniforms.uOpacity, { value: on ? 0.35 : 1, duration: 0.5, overwrite: "auto", onUpdate: () => wake(600) });
+      else skin.uniforms.uOpacity.value = on ? 0.35 : 1;
+    }
     wake(900);
   }
   function glideTo(end) {
@@ -261,9 +288,9 @@ export async function createBodyViewer(container, { onSelect = () => {}, onFail 
     gsap.from(gltf.scene.position, { y: -0.04, duration: 1.0, ease: "power2.out" });
     if (skin) gsap.from(skin.uniforms.uOpacity, { value: 0, duration: 1.2, ease: "power1.out", onUpdate: () => wake(400) });
     // reveal: swing in from the patient's right and settle on the front view
-    const k = { v: 0 }, swing = 0.9;
+    const k = { v: 0 }, swing = 0.5;
     state.az = baseSph.az - swing; applyState();
-    tween = gsap.to(k, { v: 1, duration: 2.2, ease: "power3.out",
+    tween = gsap.to(k, { v: 1, duration: 1.4, ease: "power3.out",
       onUpdate: () => { state.az = baseSph.az - swing * (1 - k.v); applyState(); wake(600); },
       onComplete: () => { tween = null; wake(900); } });
   }

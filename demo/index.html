@@ -3,96 +3,92 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Report Simplifier Check</title>
+<title>Report Check</title>
+<meta name="theme-color" content="#e9edf2">
 <script type="importmap">{"imports":{"three":"/vendor/three/build/three.module.min.js","three/addons/":"/vendor/three/examples/jsm/"}}</script>
 <script src="/vendor/gsap/gsap.min.js"></script>
 <style>
   :root {
-    --page: #d4dee8; --frame: #ecf0f6; --frame-line: rgba(255, 255, 255, .8);
-    --card: #ffffff; --card-2: #f4f6fa; --ink: #101218; --on-ink: #ffffff;
-    --muted: #5f6675; --line: #e3e7ee; --shadow: 0 1px 2px rgba(16, 18, 24, .04), 0 8px 24px rgba(16, 18, 24, .04);
-    --yellow: #fbe96c; --on-yellow: #2d2600; --focus: #2f6df6;
-    --good: #1f8a4c; --warn: #9a6700; --bad: #c0392b;
-    --lvl-unlikely: #6b7a90; --lvl-possible: #9a6700; --lvl-likely: #7a3db8;
-    --flag-bg: #fde7e4;
-    --mk-finding: #d9480f; --mk-uncertain: #f5c518; --mk-uncertain-ink: #3b2e00; --mk-normal: #2f6df6;
-    --bar: #d9dde5;
+    color-scheme: light;
+    --page: #e9edf2; --frame: #f3f5f8; --frame-line: #e1e6ed;
+    --card: #fcfcfd; --card-2: #f1f3f7; --ink: #14171f; --on-ink: #fcfcfd;
+    --muted: #596173; --line: #e1e5ec; --line-strong: #8a93a3;
+    --accent: #2453c4; --on-accent: #fcfcfd; --focus: var(--accent);
+    --good: #1a7a43; --warn: #8f5f00; --bad: #c0392b;
+    --lvl-unlikely: #5d6b80; --lvl-possible: var(--warn); --lvl-likely: #6b4a00;
+    --flag-bg: #fbe4e0;
+    --mk-finding: #c2410c; --mk-uncertain: #e0a100; --mk-uncertain-ink: #2b2000; --mk-normal: #687487;
+    --bar: #d9dde5; --bar-strong: #8a93a3;
+    --fs-xs: 12px; --fs-sm: 13px; --fs-base: 15px; --fs-md: 17px; --fs-lg: 20px; --fs-xl: 28px;
+    --fs-display: clamp(32px, 3.2vw, 44px); --lh-tight: 1.15; --lh-body: 1.5;
+    --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px; --sp-7: 48px;
+    --r-xs: 4px; --r-md: 12px; --r-lg: 20px; --r-pill: 999px;
+    --shadow: 0 1px 2px rgb(40 52 72 / .06), 0 4px 12px rgb(40 52 72 / .05);
+    --shadow-2: 0 4px 14px rgb(40 52 72 / .14);
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --page: #0d1117; --frame: #161c26; --frame-line: rgba(255, 255, 255, .06);
-      --card: #1e2632; --card-2: #263040; --ink: #eef1f6; --on-ink: #101218;
-      --muted: #a4aebf; --line: #2d3746; --shadow: none;
-      --yellow: #f5df5a; --on-yellow: #2d2600; --focus: #8db0ff;
-      --good: #55c185; --warn: #e0b055; --bad: #ff8a7a;
-      --lvl-unlikely: #9aa7bb; --lvl-possible: #e0b055; --lvl-likely: #c39bff;
-      --flag-bg: #4a2420;
-      --mk-finding: #ff7a45; --mk-uncertain-ink: #3b2e00; --mk-normal: #6d9bff;
-      --bar: #3a4556;
-    }
-  }
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
-  body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 Inter, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  body { margin: 0; background: var(--page); color: var(--ink); font: var(--fs-base) / var(--lh-body) "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
   :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-  .shell { max-width: 1480px; margin: 0 auto; padding: 24px; }
-  .frame { background: var(--frame); border: 1px solid var(--frame-line); border-radius: 40px; padding: 28px 40px 48px; box-shadow: 0 0 0 10px rgba(255, 255, 255, .22); }
-  @media (prefers-color-scheme: dark) { .frame { box-shadow: none; } }
+  .stat, .bar, .mini, .verdict, table.summary, #status, .mk-count, .caption { font-variant-numeric: tabular-nums; }
+  .shell { max-width: 1480px; margin: 0 auto; padding: var(--sp-5); }
+  .frame { background: var(--frame); border: 1px solid var(--frame-line); border-radius: var(--r-lg); padding: var(--sp-6) 40px var(--sp-7); }
   h1, h2, h3, p { margin: 0; }
 
   /* header */
-  .top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: space-between; }
-  .brand { display: inline-flex; align-items: center; gap: 10px; font-size: 22px; font-weight: 600; letter-spacing: -.02em; color: var(--ink); text-decoration: none; }
+  .top { display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap; justify-content: space-between; }
+  .brand { display: inline-flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-lg); font-weight: 600; letter-spacing: -.02em; color: var(--ink); text-decoration: none; }
   .brand svg { width: 28px; height: 28px; }
-  .pills { display: flex; gap: 10px; flex-wrap: wrap; }
-  .pill { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 24px; border-radius: 999px; background: var(--card); color: var(--ink); text-decoration: none; font-weight: 500; font-size: 15px; box-shadow: var(--shadow); }
+  .pills { display: flex; gap: var(--sp-3); flex-wrap: wrap; }
+  .pill { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 44px; padding: 0 var(--sp-5); border-radius: var(--r-pill); background: var(--card); color: var(--ink); text-decoration: none; font-weight: 500; font-size: var(--fs-base); box-shadow: var(--shadow); }
   .pill svg { width: 18px; height: 18px; }
-  .pill:hover { background: var(--yellow); color: var(--on-yellow); }
-  .proto-chip { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; background: var(--card); font-size: 14px; box-shadow: var(--shadow); }
-  .proto-chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--mk-uncertain); }
+  .pill:hover { background: var(--card-2); }
 
   /* board */
-  .board { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(0, 1.25fr) minmax(300px, 1fr); gap: 24px; align-items: start; margin-top: 28px; }
+  .board { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(0, 1.25fr) minmax(300px, 1fr); gap: var(--sp-5); align-items: start; margin-top: var(--sp-5); }
   .board > * { min-width: 0; }
-  .intro h1 { font-size: clamp(46px, 5.4vw, 76px); line-height: .98; letter-spacing: -.04em; font-weight: 500; margin: 36px 0 18px; }
-  .lead { font-size: 18px; line-height: 1.35; font-weight: 500; letter-spacing: -.01em; max-width: 30ch; }
-  .sub { color: var(--muted); margin-top: 10px; max-width: 42ch; }
-  .proto-note { color: var(--muted); font-size: 13px; margin: 10px 0 22px; max-width: 46ch; }
-  .proto-note strong { background: var(--yellow); color: var(--on-yellow); border-radius: 999px; padding: 1px 8px; margin-right: 4px; }
+  .intro h1 { font-size: var(--fs-display); line-height: var(--lh-tight); letter-spacing: -.03em; font-weight: 500; margin: var(--sp-6) 0 var(--sp-4); }
+  .lead { font-size: var(--fs-md); line-height: 1.35; font-weight: 500; letter-spacing: -.01em; max-width: 30ch; }
+  .sub { color: var(--muted); margin-top: var(--sp-3); max-width: 42ch; }
 
-  .card { background: var(--card); border-radius: 24px; padding: 18px; box-shadow: var(--shadow); min-width: 0; }
-  .card h2 { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
-  .controls .label { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-  .chip { border: 0; background: var(--card-2); color: var(--ink); border-radius: 999px; min-height: 32px; padding: 4px 12px; cursor: pointer; font: inherit; font-size: 13px; text-align: left; }
-  .chip:hover { background: var(--yellow); color: var(--on-yellow); }
-  .chip[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
-  textarea { width: 100%; min-height: 110px; border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: var(--card-2); color: var(--ink); font: inherit; font-size: 14px; resize: vertical; }
-  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
-  .cta { display: inline-flex; align-items: center; justify-content: space-between; gap: 14px; flex: 1 1 230px; min-height: 52px; padding: 0 8px 0 22px; border: 0; border-radius: 999px; background: var(--yellow); color: var(--on-yellow); font: inherit; font-weight: 500; cursor: pointer; }
-  .cta small { font-weight: 400; opacity: .75; margin-left: 4px; }
-  .cta-ico { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #fff; color: #111; }
+  .card { background: var(--card); border-radius: var(--r-lg); padding: var(--sp-4); box-shadow: var(--shadow); min-width: 0; }
+  .card h2 { font-size: var(--fs-base); font-weight: 600; letter-spacing: -.01em; }
+  .controls .label { font-size: var(--fs-sm); color: var(--muted); margin: 0 0 var(--sp-2); }
+  .chips { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+  .chip { border: 1px solid var(--line-strong); background: var(--card); color: var(--ink); border-radius: var(--r-pill); min-height: 32px; padding: var(--sp-1) var(--sp-3); cursor: pointer; font: inherit; font-size: var(--fs-sm); text-align: left; }
+  .chip:hover { background: var(--card-2); }
+  .chip[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  textarea { width: 100%; min-height: 112px; border: 1px solid var(--line-strong); border-radius: var(--r-md); padding: var(--sp-3) var(--sp-4); background: var(--card-2); color: var(--ink); font: inherit; font-size: var(--fs-base); resize: vertical; }
+  .row { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; margin-top: var(--sp-3); }
+  .cta { display: inline-flex; align-items: center; justify-content: space-between; gap: var(--sp-4); flex: 1 1 232px; min-height: 52px; padding: 0 var(--sp-2) 0 var(--sp-5); border: 0; border-radius: var(--r-pill); background: var(--accent); color: var(--on-accent); font: inherit; font-weight: 500; cursor: pointer; }
+  .cta:hover { background: color-mix(in srgb, var(--accent) 86%, var(--ink)); }
+  .cta small { font-weight: 400; opacity: .85; margin-left: var(--sp-1); }
+  .cta-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--on-accent); color: var(--accent); }
   .cta-ico svg { width: 16px; height: 16px; }
-  .ghost { min-height: 52px; padding: 0 22px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: inherit; font-weight: 500; cursor: pointer; flex: 1 1 150px; }
-  .ghost small { font-weight: 400; color: var(--muted); margin-left: 4px; }
+  .ghost { min-height: 52px; padding: 0 var(--sp-5); border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: transparent; color: var(--ink); font: inherit; font-weight: 500; cursor: pointer; flex: 1 1 152px; }
+  .ghost small { font-weight: 400; color: var(--muted); margin-left: var(--sp-1); }
   .ghost:hover { background: var(--card-2); }
-  button:disabled { opacity: .55; cursor: wait; }
-  .toggle { font-size: 14px; display: inline-flex; gap: 8px; align-items: center; cursor: pointer; min-height: 32px; }
-  .toggle input { width: 18px; height: 18px; accent-color: var(--ink); }
-  #status { color: var(--muted); font-size: 14px; }
-  .note { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  button:disabled, button[aria-disabled="true"] { opacity: .55; cursor: wait; }
+  .toggle { font-size: var(--fs-base); display: inline-flex; gap: var(--sp-2); align-items: center; cursor: pointer; min-height: 32px; }
+  .toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
+  #status, #tick { color: var(--muted); font-size: var(--fs-sm); }
+  #status.err { color: var(--bad); }
+  textarea[aria-invalid="true"] { border-color: var(--bad); }
+  textarea.drop { outline: 2px dashed var(--accent); outline-offset: 2px; }
+  .note { color: var(--muted); font-size: var(--fs-sm); margin-top: var(--sp-3); }
 
   /* body map */
   .map { container: map / inline-size; text-align: center; }
-  .map h2 { font-size: 15px; font-weight: 600; }
-  .map .hint { color: var(--muted); font-size: 13px; margin-top: 2px; }
-  .figure { --fh: clamp(460px, 72vh, 700px); container: fig / inline-size; position: relative; width: min(100%, calc(var(--fh) * .3947)); aspect-ratio: 300 / 760; margin: 14px auto 0; }
+  .map h2 { font-size: var(--fs-base); font-weight: 600; }
+  .map .hint { color: var(--muted); font-size: var(--fs-sm); margin-top: var(--sp-1); }
+  .figure { --fh: clamp(320px, 72vh, 700px); container: fig / inline-size; position: relative; width: min(100%, calc(var(--fh) * .3947)); aspect-ratio: 300 / 760; margin: var(--sp-4) auto 0; }
   .body-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
   .body-svg[hidden] { display: none; }   /* the hidden attribute does not hide SVG elements by itself */
   .mk { position: absolute; width: 28px; height: 28px; transform: translate(-50%, -50%); padding: 0; border: 0; background: none; cursor: pointer; z-index: 1; font: inherit; }
   .mk[aria-pressed="true"], .mk:hover, .mk:focus-visible { z-index: 3; }
-  .mk-dot { position: absolute; inset: 3px; display: grid; place-items: center; border-radius: 50%; background: #fff; box-shadow: 0 2px 8px rgba(16, 18, 24, .25); font-size: 11px; font-weight: 800; line-height: 1; color: #fff; transition: transform .15s; }
+  .mk-dot { position: absolute; inset: 3px; display: grid; place-items: center; border-radius: 50%; background: var(--card); box-shadow: var(--shadow-2); font-size: 11px; font-weight: 700; line-height: 1; color: var(--on-ink); transition: transform .15s; }
   .mk-dot::before { content: ""; position: absolute; inset: 3px; border-radius: 50%; background: var(--c); z-index: -1; }
   .mk-dot { z-index: 0; isolation: isolate; }
   .mk.finding { --c: var(--mk-finding); }
@@ -100,193 +96,279 @@
   .mk.uncertain .mk-dot { color: var(--mk-uncertain-ink); }
   .mk.normal { --c: var(--mk-normal); }
   .mk:hover .mk-dot { transform: scale(1.12); }
-  .mk[aria-pressed="true"] .mk-dot { box-shadow: 0 0 0 3px var(--ink), 0 2px 8px rgba(16, 18, 24, .3); }
-  .mk-label { position: absolute; top: 50%; transform: translateY(calc(-50% + var(--dy, 0px))); display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; background: var(--card); color: var(--ink); border-radius: 999px; padding: 6px 14px 6px 11px; font-size: 13px; font-weight: 500; box-shadow: 0 4px 14px rgba(16, 18, 24, .12); }
-  .mk-label .d { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+  .mk[aria-pressed="true"] .mk-dot { box-shadow: 0 0 0 3px var(--ink), var(--shadow-2); }
+  .mk-label { position: absolute; top: 50%; transform: translateY(calc(-50% + var(--dy, 0px))); display: inline-flex; align-items: center; gap: var(--sp-2); white-space: nowrap; background: var(--card); color: var(--ink); border-radius: var(--r-pill); padding: var(--sp-2) var(--sp-4) var(--sp-2) var(--sp-3); font-size: var(--fs-sm); font-weight: 500; box-shadow: var(--shadow-2); }
+  .mk-label .d { width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
   .mk-label b { color: var(--muted); font-weight: 500; }
   .mk[data-side="r"] .mk-label { left: calc(100% + 2px); }
   .mk[data-side="l"] .mk-label { right: calc(100% + 2px); }
   .mk[aria-pressed="true"] .mk-label { background: var(--ink); color: var(--on-ink); }
   .mk[aria-pressed="true"] .mk-label b { color: inherit; opacity: .75; }
   @container map (max-width: 399px) { .mk-label { display: none; } }
-  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; justify-content: center; font-size: 13px; color: var(--muted); margin-top: 14px; }
-  .legend span { display: inline-flex; align-items: center; gap: 6px; }
-  .legend .g { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 10px; font-weight: 800; color: #fff; }
+  .legend { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); justify-content: center; font-size: var(--fs-sm); color: var(--muted); margin-top: var(--sp-4); }
+  .legend span { display: inline-flex; align-items: center; gap: var(--sp-2); }
+  .legend .g { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 10px; font-weight: 700; font-style: normal; color: var(--on-ink); }
   .g.finding { background: var(--mk-finding); } .g.uncertain { background: var(--mk-uncertain); color: var(--mk-uncertain-ink); } .g.normal { background: var(--mk-normal); }
-  .caption { margin: 14px auto 0; max-width: 460px; background: var(--card); border-radius: 20px; padding: 14px 16px; text-align: left; font-size: 14px; box-shadow: var(--shadow); }
-  .caption strong { display: block; margin-bottom: 4px; }
-  .caption .cap-s { display: block; padding: 3px 0 3px 10px; border-left: 3px solid var(--mk-normal); margin: 4px 0; }
-  .caption .cap-s.finding { border-left-color: var(--mk-finding); } .caption .cap-s.uncertain { border-left-color: var(--mk-uncertain); }
+  .caption { margin: var(--sp-4) auto 0; max-width: 460px; background: var(--card); border-radius: var(--r-lg); padding: var(--sp-4); text-align: left; font-size: var(--fs-base); box-shadow: var(--shadow); }
+  .caption strong { display: block; margin-bottom: var(--sp-1); font-weight: 600; }
+  .caption .cap-s { display: block; padding: var(--sp-1) 0 var(--sp-1) var(--sp-3); border-left: 3px solid var(--mk-normal); margin: var(--sp-1) 0; }
+  .caption .cap-s.finding { border-left-color: var(--mk-finding); } .caption .cap-s.uncertain { border-left-color: var(--warn); }
   .caption .muted { color: var(--muted); }
-  .orient { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  .orient { color: var(--muted); font-size: var(--fs-xs); margin-top: var(--sp-2); }
 
   /* 3D figure: replaces the flat SVG; pins are HTML buttons projected from 3D points */
-  .figure.is3d { width: 100%; max-width: 600px; height: var(--fh); aspect-ratio: auto; border-radius: 28px; overflow: hidden;
+  .figure.is3d { width: 100%; max-width: 600px; height: var(--fh); aspect-ratio: auto; border-radius: var(--r-lg); overflow: clip;
     background: radial-gradient(120% 90% at 50% 38%, color-mix(in srgb, var(--card) 70%, transparent), transparent 70%); }
-  .loading3d { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; }
-  .body3d-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  .loading3d { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: var(--fs-base); }
+  .body3d-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: pan-y pinch-zoom; cursor: grab; }
   .body3d-canvas:active { cursor: grabbing; }
   .pins { position: absolute; inset: 0; pointer-events: none; }
   .figure.is3d .mk { position: absolute; left: 0; top: 0; pointer-events: auto; transform: translate(-50%, -50%); transition: opacity .25s; }
-  .figure.is3d .mk { width: 22px; height: 22px; }
-  .figure.is3d .mk-dot { inset: 2px; font-size: 10px; }
+  .figure.is3d .mk { width: 24px; height: 24px; }
+  .figure.is3d .mk-dot { inset: 3px; font-size: 10px; }
+  @media (pointer: coarse) {
+    .mk { width: 44px; height: 44px; } .mk-dot { inset: 11px; }
+    .figure.is3d .mk { width: 44px; height: 44px; } .figure.is3d .mk-dot { inset: 13px; }
+    .mk-count { top: 6px; right: 6px; }
+    .seg-b { min-height: 44px; }
+  }
   .figure.is3d .mk[data-far="1"] { opacity: .28; }
   .figure.is3d .mk:hover, .figure.is3d .mk:focus-visible, .figure.is3d .mk[aria-pressed="true"] { z-index: 5; opacity: 1; }
   .figure.is3d .mk-label { display: none; }
   .figure.is3d .mk[data-side="b"] .mk-label { left: 50%; right: auto; top: calc(100% + 6px); transform: translateX(calc(-50% + var(--lx, 0px))); }
   .figure.is3d .mk:hover .mk-label, .figure.is3d .mk:focus-visible .mk-label, .figure.is3d .mk[aria-pressed="true"] .mk-label { display: inline-flex; }
-  .mk-count { position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--ink); color: var(--on-ink); font-size: 10px; font-weight: 700; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--card); }
-  .seg { display: inline-flex; gap: 4px; padding: 3px; margin: 8px auto 0; border-radius: 999px; background: var(--card); box-shadow: var(--shadow); }
+  .mk-count { position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 var(--sp-1); border-radius: var(--r-pill); background: var(--ink); color: var(--on-ink); font-size: 10px; font-weight: 600; display: grid; place-items: center; box-shadow: 0 0 0 2px var(--card); }
+  .seg { display: inline-flex; gap: var(--sp-1); padding: var(--sp-1); margin: var(--sp-2) auto 0; border-radius: var(--r-pill); background: var(--card); box-shadow: var(--shadow); }
+  .seg.pending { visibility: hidden; }
   .seg[hidden] { display: none; }   /* display:inline-flex above would otherwise win over the hidden attribute */
-  .seg-b { border: 0; background: transparent; color: var(--ink); border-radius: 999px; min-height: 32px; padding: 4px 14px; font: inherit; font-size: 13px; cursor: pointer; }
-  .seg-b[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
-  .credit { color: var(--muted); font-size: 11px; margin: 4px 0 0; }
+  .seg-b { border: 0; background: transparent; color: var(--ink); border-radius: var(--r-pill); min-height: 32px; padding: var(--sp-1) var(--sp-4); font: inherit; font-size: var(--fs-sm); cursor: pointer; }
+  .seg-b:hover { background: var(--card-2); }
+  .seg-b[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+  .seg-b[aria-pressed="true"]:hover { background: var(--accent); }
+  .credit { color: var(--muted); font-size: var(--fs-xs); margin: var(--sp-1) 0 0; }
   @media (prefers-reduced-motion: reduce) { .body3d-canvas { cursor: default; } }
+  @media (max-height: 500px) { .figure { --fh: 300px; } }
 
-  /* right-hand stats */
-  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .stats .wide { grid-column: 1 / -1; }
-  .stat .head { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
-  .stat .ico { width: 20px; height: 20px; color: var(--mk-finding); }
-  .stat .val { font-size: 34px; letter-spacing: -.03em; font-weight: 500; line-height: 1.1; margin: 14px 0 12px; }
-  .stat .val small { font-size: 15px; color: var(--muted); letter-spacing: 0; margin-left: 2px; }
-  .stat .foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
-  .tag { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; font-size: 12px; }
+  /* right-hand column: verdict first, then the score cards */
+  .side { display: grid; gap: var(--sp-3); min-width: 0; }
+  .stat .head { display: flex; align-items: center; gap: var(--sp-2); color: var(--muted); font-size: var(--fs-sm); }
+  .stat .val { font-size: var(--fs-xl); letter-spacing: -.03em; font-weight: 500; line-height: var(--lh-tight); margin: var(--sp-4) 0 var(--sp-3); }
+  .stat .val small { font-size: var(--fs-base); color: var(--muted); letter-spacing: 0; margin-left: 2px; }
+  .stat .foot { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-2); font-size: var(--fs-xs); color: var(--muted); }
+  .tag { display: inline-flex; align-items: center; gap: var(--sp-1); font-weight: 600; font-size: var(--fs-xs); }
   .tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
   .tag.good { color: var(--good); } .tag.warn { color: var(--warn); } .tag.bad { color: var(--bad); }
   .gauge-wrap { display: flex; flex-direction: column; align-items: center; }
-  .gauge { width: 100%; max-width: 280px; height: auto; margin-top: 4px; }
-  .gauge-val { font-size: 34px; font-weight: 500; letter-spacing: -.03em; line-height: 1; margin-top: -58px; }
-  .gauge-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
-  .mini { display: flex; justify-content: space-between; gap: 12px; width: 100%; border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; font-size: 13px; color: var(--muted); }
+  .gauge { width: 100%; max-width: 280px; height: auto; margin-top: var(--sp-1); }
+  .gauge-val { font-size: var(--fs-xl); font-weight: 500; letter-spacing: -.03em; line-height: 1; margin-top: -58px; }
+  .gauge-sub { font-size: var(--fs-sm); color: var(--muted); margin-top: var(--sp-1); }
+  .mini { display: flex; justify-content: space-between; gap: var(--sp-3); width: 100%; border-top: 1px solid var(--line); margin-top: var(--sp-4); padding-top: var(--sp-3); font-size: var(--fs-sm); color: var(--muted); }
   .mini b { color: var(--ink); font-weight: 600; }
-  .chart .big { font-size: 40px; font-weight: 400; letter-spacing: -.03em; line-height: 1; margin-top: 10px; }
-  .chart .big small { font-size: 14px; color: var(--muted); letter-spacing: 0; }
-  .chart-svg { width: 100%; height: auto; display: block; margin-top: 10px; }
-  .chart .cap { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .chart .big { font-size: var(--fs-xl); font-weight: 400; letter-spacing: -.03em; line-height: 1; margin-top: var(--sp-3); }
+  .chart .big small { font-size: var(--fs-sm); color: var(--muted); letter-spacing: 0; }
+  .chart-svg { width: 100%; height: auto; display: block; margin-top: var(--sp-3); }
+  .chart .cap { font-size: var(--fs-xs); color: var(--muted); margin-top: var(--sp-2); }
 
   /* findings list */
-  .findings { margin-top: 24px; }
-  .findings h2, .compare-h { font-size: 22px; font-weight: 500; letter-spacing: -.02em; }
+  .findings { margin-top: var(--sp-5); }
+  .findings h2 { font-size: var(--fs-lg); font-weight: 500; letter-spacing: -.02em; }
   .findings .sub { max-width: 80ch; }
-  .find-list { list-style: none; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-  .find { background: var(--card-2); border-radius: 18px; padding: 12px 14px; border: 2px solid transparent; }
-  .find.on { border-color: var(--ink); background: var(--card); }
-  .find p { margin-top: 8px; overflow-wrap: anywhere; }
-  .find-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; }
-  .badge b { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-size: 10px; color: #fff; }
+  .find-list { list-style: none; margin: var(--sp-4) 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: var(--sp-3); }
+  .find { background: var(--card-2); border-radius: var(--r-md); padding: var(--sp-3) var(--sp-4); border: 2px solid transparent; }
+  .find.on { border-color: var(--accent); background: var(--card); }
+  .find p { margin-top: var(--sp-2); overflow-wrap: anywhere; }
+  .find-head { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+  .badge { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-xs); font-weight: 600; }
+  .badge b { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 10px; font-weight: 700; color: var(--on-ink); }
   .badge.finding b { background: var(--mk-finding); } .badge.uncertain b { background: var(--mk-uncertain); color: var(--mk-uncertain-ink); } .badge.normal b { background: var(--mk-normal); }
-  .rchip { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; min-height: 28px; padding: 2px 10px; font: inherit; font-size: 12px; cursor: pointer; }
-  .rchip[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
-  .rchip:hover { border-color: var(--ink); }
-  .find .muted { color: var(--muted); font-size: 12px; }
+  .rchip { border: 1px solid var(--line-strong); background: var(--card); color: var(--ink); border-radius: var(--r-pill); min-height: 28px; padding: 2px var(--sp-3); font: inherit; font-size: var(--fs-xs); cursor: pointer; }
+  .rchip[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+  .rchip:hover { background: var(--card-2); }
+  .rchip[aria-pressed="true"]:hover { background: var(--accent); }
+  .find .muted { color: var(--muted); font-size: var(--fs-xs); }
 
   /* comparison */
-  .verdict { font-size: 14px; margin: 28px 0 0; padding: 12px 18px; border-radius: 18px; background: var(--card); box-shadow: var(--shadow); }
-  .compare-h { margin: 28px 0 14px; }
-  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-  .col { background: var(--card); border-radius: 24px; padding: 18px; min-width: 0; box-shadow: var(--shadow); }
-  .col h3 { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
-  .col .tagline { color: var(--muted); font-size: 13px; margin: 2px 0 12px; }
-  .sent { margin: 0 0 8px; padding: 2px 0 2px 10px; border-left: 3px solid transparent; overflow-wrap: anywhere; }
+  .verdict { font-size: var(--fs-md); font-weight: 600; line-height: 1.35; margin: 0; padding: var(--sp-4); border-radius: var(--r-lg); background: var(--card); box-shadow: var(--shadow); }
+  .col { background: var(--card); border: 2px solid transparent; border-radius: var(--r-lg); padding: var(--sp-4); min-width: 0; box-shadow: var(--shadow); }
+  .col h3 { font-size: var(--fs-md); font-weight: 600; letter-spacing: -.01em; }
+  .col .tagline { color: var(--muted); font-size: var(--fs-sm); margin: 2px 0 var(--sp-3); }
+  .sent { margin: 0 0 var(--sp-2); padding: 2px 0 2px var(--sp-3); border-left: 3px solid transparent; overflow-wrap: anywhere; }
   .sent.unsupported { border-left-color: var(--bad); background: color-mix(in srgb, var(--flag-bg) 55%, transparent); }
-  mark.flag { background: var(--flag-bg); color: inherit; border-bottom: 2px solid var(--bad); border-radius: 2px; padding: 0 1px; }
-  .h-unlikely, .h-possible, .h-likely { border-bottom: 2px dotted; }
-  .h-unlikely { color: var(--lvl-unlikely); } .h-possible { color: var(--lvl-possible); } .h-likely { color: var(--lvl-likely); }
-  .bars { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
-  .bar { display: grid; grid-template-columns: 138px 1fr 40px; gap: 8px; align-items: center; font-size: 13px; margin: 5px 0; }
-  .bar .track { background: var(--card-2); border-radius: 5px; height: 9px; overflow: hidden; }
-  .bar .fill { height: 100%; border-radius: 5px; }
-  .bar.total { font-weight: 600; font-size: 14px; }
-  .issues { margin: 10px 0 0; padding-left: 18px; font-size: 13px; }
+  mark.flag { position: relative; background: var(--flag-bg); color: inherit; border-bottom: 2px solid var(--bad); border-radius: var(--r-xs); padding: 0 1px; }
+  mark.flag:is(:hover, :focus-visible)::after { content: attr(data-tip); position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 6; width: max-content; max-width: min(240px, 70vw); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-md); background: var(--ink); color: var(--on-ink); font-size: var(--fs-sm); font-weight: 500; line-height: 1.35; box-shadow: var(--shadow-2); pointer-events: none; }
+  /* hedge level: text stays in ink, the level is the underline style (dotted possible, dashed likely, solid unlikely) */
+  .h-unlikely, .h-possible, .h-likely { color: var(--ink); text-decoration-line: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+  .h-possible { text-decoration-style: dotted; text-decoration-color: var(--lvl-possible); }
+  .h-likely { text-decoration-style: dashed; text-decoration-color: var(--lvl-likely); }
+  .h-unlikely { text-decoration-style: solid; text-decoration-color: var(--lvl-unlikely); }
+  .bars { margin-top: var(--sp-3); border-top: 1px solid var(--line); padding-top: var(--sp-3); }
+  .bar { display: grid; grid-template-columns: 140px 1fr 40px; gap: var(--sp-2); align-items: center; font-size: var(--fs-sm); margin: var(--sp-1) 0; }
+  .bar .track { background: var(--card-2); border-radius: var(--r-xs); height: 8px; overflow: hidden; }
+  .bar .fill { display: block; width: 100%; height: 100%; border-radius: var(--r-xs); transform: translateX(calc((var(--v, 1) - 1) * 100%)); }
+  #runbar { height: 2px; margin-top: var(--sp-2); background: var(--accent); border-radius: 1px; transform: scaleX(0); transform-origin: 0 50%; opacity: 0; }
+  .chart-svg .sbar { transform-box: fill-box; transform-origin: 50% 100%; }
+  @media (prefers-reduced-motion: no-preference) {
+    .cta, .ghost, .chip, .seg-b, .rchip, .pill { transition: transform 100ms ease-out; }
+    .cta:active:not([aria-disabled="true"]):not(:disabled), .ghost:active:not([aria-disabled="true"]):not(:disabled), .chip:active:not([aria-disabled="true"]):not(:disabled),
+    .seg-b:active:not([aria-disabled="true"]):not(:disabled), .rchip:active:not([aria-disabled="true"]):not(:disabled), .pill:active:not([aria-disabled="true"]):not(:disabled) { transform: scale(.97); }
+    .cta-ico svg { transition: transform 150ms ease-out; }
+    .cta:hover .cta-ico svg { transform: translate(2px, -2px); }
+  }
+  .bar.total { font-weight: 600; font-size: var(--fs-base); }
+  .issues { margin: var(--sp-3) 0 0; padding-left: var(--sp-4); font-size: var(--fs-sm); }
   .issues li { margin: 2px 0; }
   .issues.ok { list-style: none; padding-left: 0; color: var(--good); }
-  .gloss { color: var(--muted); font-style: italic; font-size: .94em; }
-  .key { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); margin-top: 14px; }
+  .gloss { color: var(--muted); font-style: italic; }
+  .key { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); font-size: var(--fs-sm); color: var(--muted); margin-top: var(--sp-4); }
   .key span { overflow-wrap: anywhere; }
-  .empty { color: var(--muted); padding: 30px 0; text-align: center; grid-column: 1 / -1; background: var(--card); border-radius: 24px; }
-  table.summary { border-collapse: collapse; width: 100%; font-size: 14px; margin-top: 8px; }
-  table.summary th, table.summary td { border-bottom: 1px solid var(--line); padding: 8px 10px; text-align: left; }
-  .foot-card { margin-top: 28px; overflow-x: auto; }
-  .foot-card h2 { font-size: 22px; font-weight: 500; letter-spacing: -.02em; margin-bottom: 4px; }
+  .empty { color: var(--muted); padding: 32px 0; text-align: center; grid-column: 1 / -1; background: var(--card); border-radius: var(--r-lg); }
+  table.summary { border-collapse: collapse; width: 100%; font-size: var(--fs-sm); margin-top: var(--sp-2); }
+  table.summary th, table.summary td { border-bottom: 1px solid var(--line); padding: var(--sp-2) var(--sp-3); text-align: left; }
+  .foot-card { margin-top: var(--sp-6); overflow-x: auto; }
+  .foot-card h2 { font-size: var(--fs-lg); font-weight: 500; letter-spacing: -.02em; margin-bottom: var(--sp-1); }
+
+
+  /* app layout (reference structure): icon rail, stage with callouts, input and output column */
+  .shell { max-width: 1600px; }
+  .frame { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--sp-5); padding: var(--sp-5); }
+  .content { min-width: 0; }
+  .rail { position: sticky; top: var(--sp-5); align-self: start; display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); width: 64px; padding: var(--sp-3) 0; background: var(--card); border-radius: var(--r-pill); box-shadow: var(--shadow); }
+  .brand-mark { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--accent); color: var(--on-accent); text-decoration: none; }
+  .brand-mark svg { width: 22px; height: 22px; }
+  .rail-nav { display: flex; flex-direction: column; gap: var(--sp-2); }
+  .rl { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; color: var(--muted); text-decoration: none; }
+  .rl:hover { background: var(--card-2); color: var(--ink); }
+  .rl svg { width: 20px; height: 20px; }
+  .top { align-items: flex-start; gap: var(--sp-5); }
+  .hyper { display: inline-flex; cursor: default; font-family: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace; letter-spacing: 0; text-transform: uppercase; }
+  .hyper .hl { display: inline-block; }
+  .hyper .hl.sp { width: .5em; }
+  .top-title h1 { font-size: var(--fs-xl); line-height: var(--lh-tight); letter-spacing: -.03em; font-weight: 500; margin: var(--sp-1) 0 var(--sp-2); }
+  .crumbs { font-size: var(--fs-sm); color: var(--muted); }
+  .board { grid-template-columns: minmax(0, 1.25fr) minmax(340px, .85fr); gap: var(--sp-6); margin-top: var(--sp-5); }
+  .map { text-align: center; position: sticky; top: var(--sp-5); align-self: start; }
+  #upload { flex: 0 0 auto; min-height: 36px; padding: 0 var(--sp-4); }
+  .map-tools { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-3); }
+  .map-tools .seg { margin: 0; }
+  .stage { position: relative; margin-top: var(--sp-2); }
+  .stage .figure { --fh: clamp(360px, 62vh, 720px); margin-top: var(--sp-2); }
+  .leaders, .callouts { position: absolute; inset: 0; pointer-events: none; }
+  .leaders { width: 100%; height: 100%; overflow: visible; }
+  .leaders line { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 4; }
+  .leaders circle { fill: var(--accent); }
+  .co { position: absolute; width: clamp(150px, 26%, 200px); pointer-events: auto; display: block; text-align: left; font: inherit; color: var(--ink); cursor: pointer; border: 0; background: var(--card); border-radius: var(--r-md); box-shadow: var(--shadow-2); padding: var(--sp-3); }
+  .co[data-side="l"] { left: 0; }
+  .co[data-side="r"] { right: 0; }
+  .co:hover { background: var(--card-2); }
+  .co[aria-pressed="true"] { outline: 2px solid var(--accent); }
+  .co-h { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); font-weight: 600; }
+  .co-h .g { flex: none; }
+  .co p { margin-top: var(--sp-1); font-size: var(--fs-xs); line-height: 1.4; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .side-col { display: grid; gap: var(--sp-4); align-content: start; min-width: 0; }
+  .panel-h { font-size: var(--fs-md); font-weight: 600; letter-spacing: -.01em; margin-bottom: var(--sp-3); }
+  .res-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+  .res-head .panel-h { margin: 0; }
+  .res-head .seg { margin: 0; }
+  .outpanel .col { box-shadow: none; padding: 0; background: none; }
+  .finder { margin-bottom: var(--sp-4); padding-bottom: var(--sp-4); border-bottom: 1px solid var(--line); }
+  .fchips { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+  .fchip { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 32px; padding: 0 var(--sp-3); border: 1px solid var(--line-strong); border-radius: var(--r-pill); background: var(--card); color: var(--ink); font: inherit; font-size: var(--fs-sm); cursor: pointer; }
+  .fchip b { font-weight: 600; color: var(--muted); }
+  .fchip[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+  .fchip[aria-pressed="true"] b { color: inherit; opacity: .75; }
+  .fbar { display: flex; gap: 2px; height: 6px; margin: var(--sp-3) 0; border-radius: 3px; overflow: hidden; }
+  .fbar i { display: block; min-width: 0; }
+  .fbar .finding, .fdot.finding { --c: var(--mk-finding); } .fbar .uncertain, .fdot.uncertain { --c: var(--mk-uncertain); } .fbar .normal, .fdot.normal { --c: var(--mk-normal); }
+  .fbar i { background: var(--c); }
+  .fstep { display: flex; align-items: center; gap: var(--sp-3); }
+  .fstep > button { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line-strong); background: var(--card); color: var(--ink); font: inherit; font-size: 20px; line-height: 1; cursor: pointer; }
+  .fstep > button:hover:not(:disabled) { background: var(--card-2); }
+  .fstep > button:disabled { opacity: .4; cursor: default; }
+  .fdots { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; flex: 1; min-width: 0; }
+  .fdot { position: relative; width: 14px; height: 14px; padding: 0; border-radius: 50%; border: 2px solid transparent; background: var(--c); cursor: pointer; transition: transform .15s; }
+  .fdot::after { content: ""; position: absolute; inset: -6px; }
+  .fdot[aria-current="true"] { transform: scale(1.5); border-color: var(--ink); }
+  .fpos { margin-top: var(--sp-2); text-align: center; font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .fcard { margin-top: var(--sp-3); padding: var(--sp-4); background: var(--card-2); border-radius: var(--r-md); border-left: 4px solid var(--c, var(--line-strong)); }
+  .fcard.finding { --c: var(--mk-finding); } .fcard.uncertain { --c: var(--mk-uncertain); } .fcard.normal { --c: var(--mk-normal); }
+  .fcard p { margin-top: var(--sp-2); overflow-wrap: anywhere; }
+  .fflags { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
+  .fflag { font-size: var(--fs-xs); padding: 2px var(--sp-2); border-radius: var(--r-xs); background: var(--flag-bg); }
+  .fscore { margin-top: var(--sp-3); font-size: var(--fs-xs); color: var(--muted); }
+  .controls .row + .row { margin-top: var(--sp-3); }
+  @media (max-width: 1100px) {
+    .map { position: static; }
+    .board { grid-template-columns: 1fr; }
+    .leaders, .callouts { display: none; }
+  }
+  @media (max-width: 760px) {
+    .frame { grid-template-columns: 1fr; padding: var(--sp-4); }
+    .rail { position: static; flex-direction: row; width: auto; justify-self: stretch; justify-content: space-between; padding: var(--sp-2) var(--sp-3); }
+    .rail-nav { flex-direction: row; }
+    .top { flex-direction: column; }
+  }
 
   /* responsive */
   @media (max-width: 1279px) {
     .board { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-    .stats { grid-column: 1 / -1; grid-template-columns: repeat(4, 1fr); }
-    .stats .wide { grid-column: span 2; }
+    .side { grid-column: 1 / -1; }
   }
-  @media (max-width: 1000px) { .grid { grid-template-columns: 1fr; } .stats { grid-template-columns: 1fr 1fr; } .stats .wide { grid-column: 1 / -1; } }
+  @media (max-width: 1000px) {
+    .frame { padding: var(--sp-5) var(--sp-4) var(--sp-6); }
+  }
   @media (max-width: 760px) {
-    .shell { padding: 10px; }
-    .frame { padding: 18px 16px 32px; border-radius: 28px; box-shadow: none; }
+    .shell { padding: var(--sp-3); }
+    .frame { padding: var(--sp-4) var(--sp-4) var(--sp-6); }
     .board { grid-template-columns: 1fr; }
-    .pills { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; order: 3; }
-    .pill { flex: none; padding: 0 18px; }
-    .intro h1 { margin-top: 22px; }
-    .stats { grid-template-columns: 1fr 1fr; }
-    .bar { grid-template-columns: 110px 1fr 36px; }
+    .pills { width: 100%; overflow-x: auto; flex-wrap: nowrap; padding: var(--sp-2); margin: calc(var(--sp-2) * -1); order: 3; }
+    .pill { flex: none; padding: 0 var(--sp-4); }
+    .intro h1 { margin-top: var(--sp-5); }
+    .bar { grid-template-columns: 112px 1fr 36px; }
   }
-  @media (max-width: 420px) { .stats { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
 <div class="shell">
 <div class="frame">
-  <header class="top" id="top">
-    <a class="brand" href="#top">
-      <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="22" height="22" rx="8"/><path d="M14 8v12M8 14h12"/></svg>
-      Report Check
+  <aside class="rail" aria-label="Page sections">
+    <a class="brand-mark" href="#top" aria-label="Report Check, back to the top" title="Report Check">
+      <svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 7v14M7 14h14"/></svg>
     </a>
-    <nav class="pills" aria-label="Page sections">
-      <a class="pill" href="#top"><svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true" focusable="false"><rect x="2" y="2" width="6" height="6" rx="1.5"/><rect x="10" y="2" width="6" height="6" rx="1.5"/><rect x="2" y="10" width="6" height="6" rx="1.5"/><rect x="10" y="10" width="6" height="6" rx="1.5"/></svg>Overview</a>
-      <a class="pill" href="#findings">Findings</a>
-      <a class="pill" href="#compare">Comparison</a>
-      <a class="pill" href="#heldout">Held-out</a>
+    <nav class="rail-nav">
+      <a class="rl" href="#top" title="Overview" aria-label="Overview"><svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true" focusable="false"><rect x="2" y="2" width="6" height="6" rx="1.5"/><rect x="10" y="2" width="6" height="6" rx="1.5"/><rect x="2" y="10" width="6" height="6" rx="1.5"/><rect x="10" y="10" width="6" height="6" rx="1.5"/></svg></a>
+      <a class="rl" href="#result" title="Findings and output" aria-label="Findings and output"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M3 4.5h12M3 9h12M3 13.5h8"/></svg></a>
+      <a class="rl" href="#heldout" title="Results on 120 reports" aria-label="Results on 120 reports"><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M3 15V9M7.5 15V4M12 15v-6M16 15H2"/></svg></a>
     </nav>
-    <span class="proto-chip" title="Pretrained model, not fine-tuned"><i></i>Prototype</span>
+  </aside>
+
+  <div class="content">
+  <header class="top" id="top">
+    <div class="top-title">
+      <p class="crumbs">Report Check <span aria-hidden="true">&rsaquo;</span> Checker</p>
+      <h1 id="title" data-hyper>Report check</h1>
+      <p class="lead">Does the patient version still say what the report said?</p>
+    </div>
   </header>
 
   <main>
   <div class="board">
-    <section class="intro" aria-label="Report input">
-      <h1>Report<br>check</h1>
-      <p class="lead">Does the patient version still say what the report said?</p>
-      <p class="sub">Paste a radiology report or pick an example. The checker marks changed hedges, wrong numbers or sides, added claims, and unsupported sentences.</p>
-      <p class="proto-note" role="note"><strong>Prototype.</strong> Pretrained Qwen2.5-1.5B writes the drafts. It is <strong>not fine-tuned</strong>. The checker is our own: sentence-level meaning check, numbers/sides, hedge level, readability.</p>
-
-      <div class="card controls">
-        <p class="label" id="exlabel">Examples</p>
-        <div class="chips" id="chips" role="group" aria-labelledby="exlabel"></div>
-        <label class="label" for="report" style="display:block">Radiology report</label>
-        <textarea id="report" placeholder="FINDINGS: ... IMPRESSION: ..."></textarea>
-        <div class="row">
-          <button class="cta" id="quick" type="button"><span>Quick check <small>about 30 s</small></span><span class="cta-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></span></button>
-          <button class="ghost" id="best" type="button">Best of 8 <small>about 2-3 min</small></button>
-        </div>
-        <div class="row">
-          <label class="toggle"><input type="checkbox" id="glossToggle" checked> Explain medical terms</label>
-          <span id="status" role="status" aria-live="polite"></span>
-        </div>
-        <p class="note">Examples are pre-computed so nothing waits on the model. They were picked to show different cases, not to be representative; the table at the bottom has the real comparison.</p>
-      </div>
-    </section>
-
     <section class="map" aria-labelledby="maph">
-      <h2 id="maph">Where the report says things</h2>
-      <div class="seg" role="group" aria-label="Which text to place on the body">
-        <button type="button" class="seg-b" id="modePatient" aria-pressed="true">Patient version</button>
-        <button type="button" class="seg-b" id="modeOriginal" aria-pressed="false">Original report</button>
+      <h2 class="sr-only" id="maph">Where each statement points</h2>
+      <div class="map-tools">
+        <div class="seg" role="group" aria-label="Which text to place on the body">
+          <button type="button" class="seg-b" id="modePatient" aria-pressed="true">Patient version</button>
+          <button type="button" class="seg-b" id="modeOriginal" aria-pressed="false">Original report</button>
+        </div>
+        <div class="seg pending" id="viewSeg" role="group" aria-label="How much of the body to show">
+          <button type="button" class="seg-b" id="viewChest" aria-pressed="true">Chest</button>
+          <button type="button" class="seg-b" id="viewBody" aria-pressed="false">Whole body</button>
+        </div>
       </div>
       <p class="hint" id="maphint"></p>
-      <div class="seg" id="viewSeg" role="group" aria-label="How much of the body to show" hidden>
-        <button type="button" class="seg-b" id="viewChest" aria-pressed="true">Chest</button>
-        <button type="button" class="seg-b" id="viewBody" aria-pressed="false">Whole body</button>
-      </div>
-      <div class="figure" id="figure" role="group" aria-label="Body figure with markers for each place the report mentions">
-        <div class="loading3d" id="loading3d">Loading 3D body...</div>
-        <svg class="body-svg" id="fallbackSvg" hidden viewBox="0 0 300 760" aria-hidden="true" focusable="false">
+      <div class="stage" id="stage">
+        <div class="figure" id="figure" role="group" aria-label="Body figure with markers for each place the report mentions">
+          <div class="loading3d" id="loading3d">Loading 3D body…</div>
+          <svg class="body-svg" id="fallbackSvg" hidden viewBox="0 0 300 760" aria-hidden="true" focusable="false">
           <defs>
             <linearGradient id="skin" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="760"><stop offset="0" stop-color="#f4c4ad"/><stop offset=".55" stop-color="#e29679"/><stop offset="1" stop-color="#c8694b"/></linearGradient>
             <radialGradient id="shine" gradientUnits="userSpaceOnUse" cx="135" cy="190" r="300"><stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
@@ -320,8 +402,11 @@
           <path d="M103 266C120 248 140 250 150 262C160 250 180 248 197 266" fill="none" stroke="#fff" stroke-opacity=".6" stroke-width="2" stroke-linecap="round"/>
           <circle cx="150" cy="322" r="2.5" fill="#fff" fill-opacity=".55"/>
         </svg>
+        </div>
+        <svg class="leaders" id="leaders" aria-hidden="true" focusable="false"></svg>
+        <div class="callouts" id="callouts"></div>
       </div>
-      <div class="legend" aria-label="Marker key">
+      <div class="legend" role="group" aria-label="Marker key">
         <span><i class="g finding" aria-hidden="true">!</i>Finding</span>
         <span><i class="g uncertain" aria-hidden="true">?</i>Hedged (possible, likely)</span>
         <span><i class="g normal" aria-hidden="true">&#10003;</i>Normal or none reported</span>
@@ -331,29 +416,65 @@
       <div class="caption" id="caption" aria-live="polite"></div>
     </section>
 
-    <section class="stats" id="stats" aria-label="Scores for the verifier-selected draft"></section>
+    <div class="side-col">
+      <section class="card controls" aria-label="Report input">
+        <h2 class="panel-h">Report</h2>
+        <p class="label" id="exlabel">Examples</p>
+        <div class="chips" id="chips" role="group" aria-labelledby="exlabel"></div>
+        <label class="label" for="report" style="display:block">Paste, type or drop a radiology report (.txt, .docx, .pdf)</label>
+        <textarea id="report" placeholder="FINDINGS: … IMPRESSION: …" spellcheck="false" autocomplete="off" aria-describedby="status"></textarea>
+        <div class="row">
+          <button class="ghost" id="upload" type="button" title="A .txt, .docx or .pdf report">Upload file</button>
+          <input type="file" id="fileIn" accept=".txt,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+          <label class="toggle"><input type="checkbox" id="glossToggle" checked> Explain medical terms</label>
+        </div>
+        <div class="row">
+          <button class="cta" id="quick" type="button"><span>Quick check <small>about 30 s</small></span><span class="cta-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></span></button>
+          <button class="ghost" id="best" type="button">Best of 8 <small>about 2-3 min</small></button>
+        </div>
+        <div id="runbar" aria-hidden="true"></div>
+        <div class="row"><span id="status" role="status" aria-live="polite"></span><span id="tick" aria-hidden="true"></span></div>
+        <p class="note">Examples are pre-computed so nothing waits on the model. They were picked to show different cases, not to be representative. The table at the bottom has the real comparison.</p>
+      </section>
+
+      <section class="card result" id="result" aria-labelledby="resh">
+        <div class="res-head">
+          <h2 class="panel-h" id="resh">Output and flags</h2>
+          <div class="seg" role="group" aria-label="Which draft to show">
+            <button type="button" class="seg-b" id="outTab2" aria-pressed="true">Checked draft</button>
+            <button type="button" class="seg-b" id="outTab1" aria-pressed="false">Plain draft</button>
+            <button type="button" class="seg-b" id="outTab0" aria-pressed="false">Original</button>
+          </div>
+        </div>
+        <div class="finder" id="finder" aria-labelledby="fh">
+          <h3 class="sr-only" id="fh">Findings in the patient version</h3>
+          <div class="fchips" id="fchips" role="group" aria-label="Filter the findings"></div>
+          <div class="fbar" id="fbar" aria-hidden="true"></div>
+          <div class="fstep">
+            <button type="button" id="fPrev" aria-label="Previous statement">&lsaquo;</button>
+            <div class="fdots" id="fdots" role="group" aria-label="Statements in the report"></div>
+            <button type="button" id="fNext" aria-label="Next statement">&rsaquo;</button>
+          </div>
+          <p class="fpos" id="fpos" aria-live="polite"></p>
+          <article class="fcard" id="fcard" tabindex="-1"></article>
+          <p class="fscore" id="fscore"></p>
+          <p class="fscore" id="findsub">Places are guessed from words like "right lung" or "heart", so they show what the text talks about, not exact positions. Check them against the report.</p>
+        </div>
+        <div id="outpanel" class="outpanel"><p class="muted">Pick an example or run a check to see the draft and what the checker flagged.</p></div>
+        <div class="key" role="group" aria-label="Legend">
+          <span><mark class="flag">word</mark> checker flag (hover or focus for why)</span>
+          <span><span class="h-possible">possible</span> / <span class="h-likely">likely</span> / <span class="h-unlikely">unlikely</span> hedge level</span>
+          <span>red bar on the left: sentence not supported by the report</span>
+        </div>
+      </section>
+
+    </div>
   </div>
 
-  <section class="findings" id="findings" aria-labelledby="fh">
-    <h2 id="fh">Findings in the patient version</h2>
-    <p class="sub" id="findsub">Places are guessed from words like "right lung" or "heart", so they show what the text talks about, not exact positions. Check them against the report.</p>
-    <ol class="find-list" id="findlist"></ol>
-  </section>
 
-  <div class="verdict" id="verdict" hidden></div>
-  <h2 class="compare-h" id="compare">Original, plain draft and checked draft</h2>
-  <div class="grid" id="grid">
-    <div class="empty">Pick an example above.</div>
-  </div>
-
-  <div class="key" aria-label="Legend">
-    <span><mark class="flag">word</mark> checker flag (hover for why)</span>
-    <span><span class="h-possible">possible</span> / <span class="h-likely">likely</span> / <span class="h-unlikely">unlikely</span> hedge level</span>
-    <span>red bar on the left: sentence not supported by the report</span>
-  </div>
-
-  <section class="card foot-card" id="heldout" hidden><h2>Comparison on 120 unseen reports</h2><div id="summary"></div></section>
+  <section class="card foot-card" id="heldout" hidden tabindex="0" role="region" aria-labelledby="heldh"><h2 id="heldh">Comparison on 120 unseen reports</h2><div id="summary"></div></section>
   </main>
+  </div>
 </div>
 </div>
 
@@ -367,7 +488,7 @@ const KIND_TIP = {
   "hedge changed": "Certainty level differs from the report.",
   "unsupported": "Not supported by any sentence in the report.",
   "number on wrong side": "This number is tied to a different side than in the report.",
-  "added comparison": "A comparison (larger, greater, worse...) the report does not make, or with the sides swapped.",
+  "added comparison": "A comparison (larger, greater, worse…) the report does not make, or with the sides swapped.",
 };
 const BARS = [
   ["entail", "Meaning kept", "Sentences supported by the report (NLI check)"],
@@ -394,7 +515,9 @@ function paint(text, specs) {
   for (const r of ranges(text, specs)) {
     html += esc(text.slice(pos, r.s));
     const inner = esc(text.slice(r.s, r.e));
-    html += r.cls === "flag" ? `<mark class="flag" title="${esc(r.tip)}">${inner}</mark>` : `<span class="${r.cls}" title="${esc(r.tip)}">${inner}</span>`;
+    html += r.cls === "flag"
+      ? `<mark class="flag" tabindex="0" data-tip="${esc(r.tip)}" title="${esc(r.tip)}">${inner}<span class="sr-only"> (flagged: ${esc(r.tip)})</span></mark>`
+      : `<span class="${r.cls}" title="${esc(r.tip)}">${inner}<span class="sr-only"> (${esc(r.tip)})</span></span>`;
     pos = r.e;
   }
   return html + esc(text.slice(pos));
@@ -478,13 +601,17 @@ const findingText = (f) => {
 function syncMapMode() {
   const patient = mapMode === "patient";
   $("modePatient").setAttribute("aria-pressed", String(patient)); $("modeOriginal").setAttribute("aria-pressed", String(!patient));
-  $("maphint").innerHTML = (patient ? "From the checked patient version" : "From the original radiology report") + " &middot; drag to rotate, scroll to zoom, select a marker";
+  const touch = matchMedia("(pointer: coarse)").matches;
+  const how = !viewer ? "" : touch ? " &middot; swipe sideways to rotate, pinch to zoom, tap a marker" : " &middot; drag to rotate, hold Ctrl and scroll to zoom, select a marker";
+  $("maphint").innerHTML = (patient ? "From the checked patient version" : "From the original radiology report") + how;
   $("fh").textContent = patient ? "Findings in the patient version" : "Findings in the original report";
 }
 
+let calloutsDirty = false;
 let viewer = null, viewerPending = true;   // markers wait for the 3D viewer so the flat fallback never draws on top
 function renderMarkers() {
   if (viewerPending) return;
+  calloutsDirty = true;
   if (!viewer) return renderMarkersSvg();
   viewer.setMarkers([...regions.values()].map((r) => {
     const st = worst(r), n = r.items.length, label = SPOTS[r.id][3];
@@ -506,18 +633,19 @@ function renderMarkersSvg() {
 }
 async function startViewer() {
   const fig = $("figure"), fail = (why) => {
-    viewerPending = false; $("loading3d")?.remove(); $("fallbackSvg").removeAttribute("hidden"); viewer = null;
+    viewerPending = false; $("loading3d")?.remove(); $("fallbackSvg").removeAttribute("hidden"); viewer = null; $("viewSeg").hidden = true; syncMapMode();
     $("credit").textContent = "3D view unavailable (" + why + "); showing a flat figure.";
     if (current) renderMarkers();
   };
   try {
     const { createBodyViewer } = await import("/body3d.js");
-    const v = await createBodyViewer(fig, { onSelect: (id) => setActive(id), onFail: fail });
+    const v = await createBodyViewer(fig, { onSelect: (id) => setActive(id), onFail: fail, onFrame: () => { if (calloutsDirty) buildCallouts(); drawLeaders(); } });
     viewerPending = false;
     if (!v) return;
     viewer = v; fig.classList.add("is3d"); $("loading3d").remove();
     $("credit").textContent = v.credit;
-    if (v.hasFullBody) $("viewSeg").hidden = false;
+    if (v.hasFullBody) $("viewSeg").classList.remove("pending"); else $("viewSeg").hidden = true;
+    syncMapMode();
     if (current) { renderMarkers(); if (active) viewer.focus(active); }
   } catch (e) { viewerPending = false; fail(String(e.message || e)); }
 }
@@ -532,6 +660,43 @@ function placeLabels() {
     });
   });
 }
+
+/* ---------- callout cards with dashed leader lines (top four places the text talks about) ---------- */
+const SLOTS = { l: [6, 56], r: [22, 72] };
+function buildCallouts() {
+  calloutsDirty = false;
+  const host = $("callouts");
+  if (!viewer || !regions.size) { host.innerHTML = ""; $("leaders").innerHTML = ""; return; }
+  const fig = $("figure").getBoundingClientRect(), cx = fig.left + fig.width / 2;
+  const top = [...regions.values()].sort((a, b) => b.rank - a.rank || b.items.length - a.items.length).slice(0, 4);
+  const sides = { l: [], r: [] };
+  top.forEach((r) => {
+    const dot = viewer.pinFor(r.id)?.getBoundingClientRect();
+    const side = dot && dot.left + dot.width / 2 < cx ? "l" : "r";
+    (sides[side].length < 2 ? sides[side] : sides[side === "l" ? "r" : "l"]).push(r);
+  });
+  host.innerHTML = ["l", "r"].map((side) => sides[side].map((r, i) => {
+    const st = worst(r), f = findings[r.items[0]], label = SPOTS[r.id][3];
+    const text = f.s.text.replace(/\s+/g, " ").trim();
+    return `<button type="button" class="co ${st}" data-r="${r.id}" data-side="${side}" style="top:${SLOTS[side][i]}%" aria-pressed="${r.id === active}" ` +
+      `aria-label="${esc(label)}: ${r.items.length} ${r.items.length > 1 ? "statements" : "statement"}, ${STATUS_TEXT[st].toLowerCase()}">` +
+      `<span class="co-h"><i class="g ${st}" aria-hidden="true">${GLYPH[st]}</i>${esc(label)}</span><p>${esc(text)}</p></button>`;
+  }).join("")).join("");
+  host.querySelectorAll(".co").forEach((c) => (c.onclick = () => setActive(c.dataset.r)));
+}
+function drawLeaders() {
+  const svg = $("leaders"), st = $("stage").getBoundingClientRect();
+  let h = "";
+  document.querySelectorAll(".co").forEach((c) => {
+    const pin = viewer && viewer.pinFor(c.dataset.r), dot = pin && pin.querySelector(".mk-dot");
+    if (!dot || pin.style.visibility === "hidden") return;
+    const d = dot.getBoundingClientRect(), cr = c.getBoundingClientRect();
+    const x2 = d.left + d.width / 2 - st.left, y2 = d.top + d.height / 2 - st.top;
+    const x1 = (c.dataset.side === "l" ? cr.right : cr.left) - st.left, y1 = cr.top + cr.height / 2 - st.top;
+    h += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/><circle cx="${x2.toFixed(1)}" cy="${y2.toFixed(1)}" r="3"/>`;
+  });
+  svg.innerHTML = h;
+}
 function renderCaption() {
   const el = $("caption");
   if (!findings.length) { el.innerHTML = '<span class="muted">Pick an example or run a check to place the report\'s statements on the body.</span>'; return; }
@@ -543,66 +708,72 @@ function renderCaption() {
   const r = regions.get(active);
   el.innerHTML = `<strong>${esc(SPOTS[active][3])}</strong>` + r.items.map((i) => `<span class="cap-s ${findings[i].status}">${findingText(findings[i])}</span>`).join("");
 }
-function setActive(id) {
+function setActive(id, quiet) {
   active = active === id ? null : id;
   viewer?.focus(active);
   $("figure").querySelectorAll(".mk").forEach((m) => m.setAttribute("aria-pressed", String(m.dataset.r === active)));
-  const on = active ? new Set(regions.get(active).items) : new Set();
-  document.querySelectorAll(".find").forEach((li) => li.classList.toggle("on", on.has(+li.dataset.i)));
+  syncFinder();
   document.querySelectorAll(".rchip").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.r === active)));
+  document.querySelectorAll(".co").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.r === active)));
   renderCaption();
+  if (!quiet && canAnim() && $("caption").children.length) gsap.fromTo($("caption").children, { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.2, ease: "power1.out", overwrite: true, clearProps: "opacity,transform" });
 }
+/* ---------- findings explorer: filter by status, step through the statements, the 3D body follows ---------- */
+let findFilter = "all", findIdx = 0;
+const FILTERS = [["all", "All"], ["finding", "Findings"], ["uncertain", "Hedged"], ["normal", "Normal"]];
+const visibleFindings = () => findings.filter((f) => findFilter === "all" || f.status === findFilter);
 function renderFindings() {
-  $("findlist").innerHTML = findings.map((f) => {
-    const chips = f.regions.length
-      ? f.regions.map((id) => `<button type="button" class="rchip" data-r="${id}" aria-pressed="false" title="Show on the body">${esc(SPOTS[id][3])}</button>`).join("")
-      : '<span class="muted">Not placed on the body</span>';
-    return `<li class="find" data-i="${f.i}"><div class="find-head"><span class="badge ${f.status}"><b aria-hidden="true">${GLYPH[f.status]}</b>${STATUS_TEXT[f.status]}</span>${chips}</div><p>${findingText(f)}</p></li>`;
-  }).join("") || '<li class="muted">No report loaded.</li>';
-  document.querySelectorAll(".rchip").forEach((c) => (c.onclick = () => { setActive(c.dataset.r); }));
+  const counts = { finding: 0, uncertain: 0, normal: 0 };
+  findings.forEach((f) => counts[f.status]++);
+  $("fchips").innerHTML = FILTERS.map(([k, label]) => {
+    const n = k === "all" ? findings.length : counts[k];
+    return `<button type="button" class="fchip" data-f="${k}" aria-pressed="${findFilter === k}">${k === "all" ? "" : `<i class="g ${k}" aria-hidden="true">${GLYPH[k]}</i>`}${label} <b>${n}</b></button>`;
+  }).join("");
+  $("fbar").innerHTML = ["finding", "uncertain", "normal"].map((k) => `<i class="${k}" style="flex:${counts[k]}"></i>`).join("");
+  findIdx = Math.min(findIdx, Math.max(0, visibleFindings().length - 1));
+  renderFindCard();
+}
+function renderFindCard(move, animate) {
+  const list = visibleFindings(), f = list[findIdx];
+  $("fdots").innerHTML = list.map((g, k) => `<button type="button" class="fdot ${g.status}" data-k="${k}" aria-current="${k === findIdx}" aria-label="Statement ${k + 1}: ${STATUS_TEXT[g.status]}"></button>`).join("");
+  $("fPrev").disabled = $("fNext").disabled = list.length < 2;
+  if (!f) {
+    $("fpos").textContent = "";
+    $("fcard").className = "fcard";
+    $("fcard").innerHTML = '<p class="muted">No report loaded.</p>';
+    return;
+  }
+  $("fpos").textContent = `Statement ${findIdx + 1} of ${list.length}`;
+  const chips = f.regions.length
+    ? f.regions.map((id) => `<button type="button" class="rchip" data-r="${id}" aria-pressed="${id === active}" title="Show on the body" aria-label="Show ${esc(SPOTS[id][3])} on the body">${esc(SPOTS[id][3])}</button>`).join("")
+    : '<span class="muted">Not placed on the body</span>';
+  const flags = (f.s.flags || []).map((fl) => `<span class="fflag" title="${esc(KIND_TIP[fl.kind] || "")}">${esc(fl.kind)}</span>`).join("");
+  $("fcard").className = "fcard " + f.status;
+  $("fcard").innerHTML = `<div class="find-head"><span class="badge ${f.status}"><b aria-hidden="true">${GLYPH[f.status]}</b>${STATUS_TEXT[f.status]}</span>${chips}</div><p>${findingText(f)}</p>` +
+    (flags ? `<div class="fflags" aria-label="What the checker flagged">${flags}</div>` : "");
+  $("fcard").querySelectorAll(".rchip").forEach((c) => (c.onclick = () => setActive(c.dataset.r)));
+  if (animate && canAnim()) gsap.fromTo($("fcard"), { opacity: 0, y: 4 }, { opacity: 1, y: 0, duration: 0.2, ease: "power1.out", overwrite: true, clearProps: "opacity,transform" });
+  if (move) {
+    if (f.regions.length) { if (active !== f.regions[0]) setActive(f.regions[0], true); }
+    else if (active) setActive(active, true);
+  }
+}
+function stepFinding(d) {
+  const n = visibleFindings().length;
+  if (n < 2) return;
+  findIdx = (findIdx + d + n) % n;
+  renderFindCard(true, true);
+}
+// the marker or callout the user clicked on the body decides which statement the explorer shows
+function syncFinder() {
+  const list = visibleFindings(), cur = list[findIdx];
+  if (!active || !regions.has(active) || (cur && cur.regions.includes(active))) return;
+  const k = list.findIndex((f) => f.regions.includes(active));
+  if (k >= 0) { findIdx = k; renderFindCard(false, true); }
 }
 
-/* ---------- score cards ---------- */
-const ICON = '<svg class="ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10 2.5C7 6.5 4.5 9 4.5 12a5.5 5.5 0 0 0 11 0c0-3-2.5-5.5-5.5-9.5Z"/></svg>';
+/* ---------- score tags ---------- */
 const tagFor = (v) => (v >= 0.75 ? ["good", "Good"] : v >= 0.5 ? ["warn", "Check"] : ["bad", "Low"]);
-function statCard(key, label, ex) {
-  const v = ex.selected.explain.score[key], p = ex.plain.explain.score[key], [cls, word] = tagFor(v);
-  return `<article class="card stat"><div class="head">${ICON}<h3 style="margin:0;font:inherit">${label}</h3></div>` +
-    `<div class="val">${v.toFixed(2)}<small>/ 1</small></div><div class="foot"><span class="tag ${cls}">${word}</span><span>plain ${p.toFixed(2)}</span></div></article>`;
-}
-function gaugeSvg(v) {
-  const n = 28, on = Math.round(Math.max(0, Math.min(1, v)) * n);
-  let t = "";
-  for (let i = 0; i < n; i++) {
-    const a = ((200 - (i * 220) / (n - 1)) * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a);
-    t += `<line x1="${(110 + 70 * c).toFixed(1)}" y1="${(105 - 70 * s).toFixed(1)}" x2="${(110 + 92 * c).toFixed(1)}" y2="${(105 - 92 * s).toFixed(1)}" stroke="${i < on ? scoreColor(v) : "var(--bar)"}" stroke-width="5" stroke-linecap="round"/>`;
-  }
-  return `<svg class="gauge" viewBox="0 0 220 130" aria-hidden="true" focusable="false">${t}</svg>`;
-}
-function chartSvg(sents) {
-  const n = sents.length, W = 300, step = (W - 16) / Math.max(n, 1), bw = Math.min(26, step * 0.62);
-  const bars = sents.map((s, i) => {
-    const v = Math.max(0, Math.min(1, s.support)), h = 6 + v * 74, x = 8 + i * step + (step - bw) / 2;
-    const bad = s.flags.some((f) => f.kind === "unsupported");
-    const fill = bad ? "var(--bad)" : v < 0.75 ? "var(--warn)" : "var(--bar)";
-    return `<rect x="${x.toFixed(1)}" y="${(88 - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="${Math.min(6, bw / 2)}" fill="${fill}"/>` +
-      (n <= 12 ? `<text x="${(x + bw / 2).toFixed(1)}" y="104" text-anchor="middle" font-size="11" fill="var(--muted)">${i + 1}</text>` : "");
-  }).join("");
-  const label = "Support from the report for each sentence of the selected draft: " + sents.map((s, i) => `${i + 1}: ${Math.round(s.support * 100)}%`).join(", ");
-  return `<svg class="chart-svg" viewBox="0 0 300 110" role="img" aria-label="${esc(label)}">${bars}</svg>`;
-}
-function renderStats(ex) {
-  const sc = ex.selected.explain.score, pl = ex.plain.explain.score, sents = ex.selected.explain.sentences;
-  const avg = sents.length ? sents.reduce((a, s) => a + s.support, 0) / sents.length : 0;
-  const [cls, word] = tagFor(sc.total);
-  $("stats").innerHTML = statCard("entail", "Meaning kept", ex) + statCard("numbers", "Numbers & sides", ex) +
-    `<article class="card stat wide"><div class="head">${ICON}<h3 style="margin:0;font:inherit">Overall score</h3></div><div class="gauge-wrap">${gaugeSvg(sc.total)}` +
-    `<div class="gauge-val">${sc.total.toFixed(2)}</div><div class="gauge-sub"><span class="tag ${cls}">${word}</span> &middot; plain draft ${pl.total.toFixed(2)}</div>` +
-    `<div class="mini"><span>Certainty kept <b>${sc.certainty.toFixed(2)}</b></span><span>Plainer wording <b>${sc.simplicity.toFixed(2)}</b></span></div></div></article>` +
-    `<article class="card stat chart wide"><div class="head"><h3 style="margin:0;font:inherit;color:var(--ink);font-weight:600">Sentence support</h3></div>` +
-    `<div class="big">${Math.round(avg * 100)}<small> % average</small></div>${chartSvg(sents)}` +
-    `<p class="cap">Taller bar = more support from the report. Red = unsupported, amber = weak. Numbers under the bars are sentence numbers in the checked draft.</p></article>`;
-}
 
 /* ---------- comparison columns (unchanged logic) ---------- */
 function sourceColumn(ex) {
@@ -625,7 +796,7 @@ function issues(summary) {
 function bars(score) {
   return `<div class="bars">${BARS.map(([k, label, tip]) => {
     const v = Math.max(0, Math.min(1, score[k]));
-    return `<div class="bar ${k === "total" ? "total" : ""}" title="${esc(tip)}"><span>${label}</span><span class="track"><span class="fill" style="width:${v * 100}%;background:${scoreColor(v)}"></span></span><span>${v.toFixed(2)}</span></div>`;
+    return `<div class="bar ${k === "total" ? "total" : ""}" title="${esc(tip)}"><span>${label}<span class="sr-only">: ${esc(tip)}</span></span><span class="track"><span class="fill" style="--v:${v};background:${scoreColor(v)}"></span></span><span>${v.toFixed(2)}</span></div>`;
   }).join("")}</div>`;
 }
 const GLOSS_TIP = "Plain explanation from our fixed glossary, not written by the AI";
@@ -640,24 +811,67 @@ function outputColumn(title, tag, item) {
     if (s.hedge_terms.length) specs.push(hedgeSpec(s.hedge_terms, s.level));
     const unsupported = s.flags.some((f) => f.kind === "unsupported");
     const tip = `support from report: ${(s.support * 100).toFixed(0)}%` + (unsupported ? " (low)" : "");
-    return `<p class="sent ${unsupported ? "unsupported" : ""}" title="${esc(tip)}">${body(s, specs)}</p>`;
+    return `<p class="sent ${unsupported ? "unsupported" : ""}" title="${esc(tip)}">${body(s, specs)}<span class="sr-only"> (${esc(tip)})</span></p>`;
   }).join("");
   return `<div class="col"><h3>${title}</h3><p class="tagline">${tag}</p>${sents}${bars(ex.score)}${issues(ex.summary)}</div>`;
+}
+/* ---------- motion (all of it instant under prefers-reduced-motion) ---------- */
+const reduce = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+const canAnim = () => !!window.gsap && !reduce();
+let swapCtx = null;
+function swapIn() {
+  swapCtx = gsap.context(() => {
+    const enter = (sel, stagger) => { const t = document.querySelectorAll(sel); if (t.length) gsap.from(t, { opacity: 0, y: 8, duration: 0.3, ease: "power2.out", stagger, clearProps: "opacity,transform" }); };
+    enter("#outpanel .col", 0.06); enter("#finder", 0);
+    const fills = document.querySelectorAll("#outpanel .bar .fill");
+    if (fills.length) gsap.fromTo(fills, { xPercent: -100, x: 0 }, { xPercent: (i, el) => -(1 - +el.style.getPropertyValue("--v")) * 100, x: 0, duration: 0.6, ease: "power2.out", stagger: 0.04, clearProps: "transform" });
+  });
+}
+
+/* ---------- right column: the draft chosen with the tabs, with its flags ---------- */
+let outTab = 2, columns = [];
+function syncOut() {
+  [0, 1, 2].forEach((i) => $("outTab" + i).setAttribute("aria-pressed", String(i === outTab)));
+  if (columns[outTab]) $("outpanel").innerHTML = columns[outTab];
+}
+const UPLOAD_TYPES = [".txt", ".docx", ".pdf"];
+const MAX_REPORT_CHARS = 3000;   // the live checker's limit (demo/server.py)
+async function readFileInto(file) {
+  if (!file) return;
+  if (!UPLOAD_TYPES.some((t) => file.name.toLowerCase().endsWith(t))) { say("Upload a .txt, .docx or .pdf file.", true); return; }
+  if (file.size > 5 * 1024 * 1024) { say("That file is larger than 5 MB.", true); return; }
+  say("Reading " + file.name + "…");
+  try {
+    const res = await fetch("/api/extract", { method: "POST", headers: { "X-Filename": encodeURIComponent(file.name) }, body: file });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || res.statusText || "The file could not be read.");
+    $("report").value = data.text;
+    $("report").removeAttribute("aria-invalid");
+    document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
+    say(data.chars > MAX_REPORT_CHARS
+      ? `Loaded ${file.name}, but it has ${data.chars} characters and the checker takes up to ${MAX_REPORT_CHARS}. Trim it to the report itself.`
+      : "Loaded " + file.name + ". Press Quick check to run it.", data.chars > MAX_REPORT_CHARS);
+  } catch (e) {
+    say(e instanceof TypeError ? "Can't reach the server. Check that it is running." : e.message, true);
+  }
 }
 let current = null;
 function render(ex) {
   const keep = current === ex ? active : null;   // glossary toggle re-renders the same report: keep the selection
+  const changed = current !== ex;                // entrance only when a different report is shown
+  if (swapCtx) { swapCtx.revert(); swapCtx = null; }
   current = ex;
-  analyse(ex); renderMarkers(); renderFindings(); renderStats(ex);
-  if (keep && regions.has(keep)) setActive(keep); else renderCaption();
-  $("grid").innerHTML = sourceColumn(ex) +
-    outputColumn("Plain LLM", "One draft, no checking", ex.plain) +
-    outputColumn("Verifier-selected", ex.n_candidates ? `Best of ${ex.n_candidates} drafts, picked by the checker` : "Picked by the checker", ex.selected);
+  if (changed) { findFilter = "all"; findIdx = 0; }
+  analyse(ex); renderMarkers(); renderFindings();
+  if (keep && regions.has(keep)) setActive(keep, true); else renderCaption();
+  columns = [sourceColumn(ex), outputColumn("Plain draft", "One draft, no checking", ex.plain),
+    outputColumn("Checked draft", ex.n_candidates ? `Best of ${ex.n_candidates} drafts, picked by the checker` : "Picked by the checker", ex.selected)];
+  syncOut();
   const a = ex.plain.explain.score.total, b = ex.selected.explain.score.total;
   const same = ex.plain.text === ex.selected.text;
-  $("verdict").hidden = false;
-  $("verdict").textContent = same ? "The checker kept the plain draft here (no better candidate found)." :
-    `Checker's overall score: plain ${a.toFixed(2)} vs selected ${b.toFixed(2)}.` + (ex.acceptable ? "" : " No draft passed all hard checks, so the top-scoring one is shown.");
+  $("fscore").textContent = same ? "The checker kept the plain draft here (no better candidate found)." :
+    `Checker score: ${b.toFixed(2)} for the checked draft, ${a.toFixed(2)} for the plain draft.` + (ex.acceptable ? "" : " No draft passed every hard check, so the top-scoring one is shown.");
+  if (changed && canAnim()) swapIn();
 }
 
 let examples = [];
@@ -666,20 +880,60 @@ function pick(i) {
   $("report").value = examples[i].source;
   render(examples[i]);
 }
+let running = false;
+const setBusy = (on) => ["outpanel", "finder"].forEach((id) => (on ? $(id).setAttribute("aria-busy", "true") : $(id).removeAttribute("aria-busy")));
+const RESULT_IDS = ["outpanel", "finder"];
+function dimResults(on, instant) {
+  const els = RESULT_IDS.map($);
+  if (window.gsap) gsap.killTweensOf(els);
+  if (!canAnim() || instant) { els.forEach((e) => (e.style.opacity = on ? "0.5" : "")); return; }
+  gsap.to(els, { opacity: on ? 0.5 : 1, duration: 0.2, ease: "power1.out", clearProps: on ? "" : "opacity" });
+}
+let creep = null, finishTl = null;
+function progressKill(reset) {
+  if (creep) { creep.kill(); creep = null; }
+  if (reset && window.gsap) { if (finishTl) { finishTl.kill(); finishTl = null; } gsap.set($("runbar"), { scaleX: 0, opacity: 0 }); }
+}
+function progressStart(mode) {
+  progressKill(true);
+  if (!canAnim()) return;
+  const bar = $("runbar");
+  gsap.set(bar, { scaleX: 0, opacity: 1 });
+  creep = gsap.to(bar, { scaleX: 0.9, duration: mode === "best" ? 150 : 30, ease: "power1.out" });
+}
+function progressFinish(ok) {
+  const bar = $("runbar");
+  progressKill();
+  if (!canAnim()) return;
+  finishTl = gsap.timeline({ onComplete: () => { gsap.set(bar, { scaleX: 0 }); finishTl = null; } });
+  if (ok) finishTl.to(bar, { scaleX: 1, duration: 0.2, ease: "power1.out" });
+  finishTl.to(bar, { opacity: 0, duration: 0.2, ease: "power1.out" });
+}
+function say(msg, err) { $("status").textContent = msg; $("status").classList.toggle("err", !!err); }
 async function live(mode) {
+  if (running) return;
   const report = $("report").value.trim();
-  if (!report) { $("status").textContent = "Paste a report first."; return; }
+  if (!report) {
+    say("Paste a report first.", true);
+    $("report").setAttribute("aria-invalid", "true"); $("report").focus();
+    return;
+  }
+  $("report").removeAttribute("aria-invalid");
   document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
-  $("quick").disabled = $("best").disabled = true;
+  running = true; setBusy(true); dimResults(true); progressStart(mode);
+  $("quick").setAttribute("aria-disabled", "true"); $("best").setAttribute("aria-disabled", "true");
   const t0 = Date.now(); let cold = true;
-  const timer = setInterval(() => { $("status").textContent = `Working... ${Math.round((Date.now() - t0) / 1000)} s` + (cold ? " (first run loads the model)" : ""); }, 500);
+  say("Working…");
+  const timer = setInterval(() => { $("tick").textContent = ` ${Math.round((Date.now() - t0) / 1000)} s` + (cold ? " (first run loads the model)" : ""); }, 500);
   try {
     const res = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ report, mode }) });
-    const data = await res.json(); cold = false;
-    if (!res.ok) throw new Error(data.error || res.statusText);
-    render(data); $("status").textContent = `Done in ${Math.round((Date.now() - t0) / 1000)} s.`;
-  } catch (e) { $("status").textContent = "Failed: " + e.message; }
-  finally { clearInterval(timer); $("quick").disabled = $("best").disabled = false; }
+    const data = await res.json().catch(() => null); cold = false;
+    if (!res.ok) throw new Error(res.status === 409 ? "Another check is running. Try again in a minute." : (data && data.error) || res.statusText || "Request failed");
+    if (!data) throw new Error("The server sent an unreadable answer.");
+    dimResults(false, true); progressFinish(true);
+    render(data); say(`Done in ${Math.round((Date.now() - t0) / 1000)} s.`);
+  } catch (e) { say("Failed: " + e.message, true); progressFinish(false); }
+  finally { clearInterval(timer); $("tick").textContent = ""; running = false; setBusy(false); dimResults(false); progressKill(); $("quick").removeAttribute("aria-disabled"); $("best").removeAttribute("aria-disabled"); }
 }
 function tableFrom(md) {
   const rows = md.split("\n").filter((l) => l.startsWith("|") && !/^\|[-| ]+\|$/.test(l)).map((l) => l.split("|").slice(1, -1).map((c) => c.trim()));
@@ -688,7 +942,54 @@ function tableFrom(md) {
   return `<table class="summary"><thead><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${body.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>` +
     `<p class="note">${esc(md.split("\n").filter((l) => l && !l.startsWith("|") && !l.startsWith("#")).join(" "))}</p>`;
 }
+function wireInput() {
+  $("fchips").onclick = (e) => { const b = e.target.closest(".fchip"); if (!b) return; findFilter = b.dataset.f; findIdx = 0; renderFindings(); };
+  $("fdots").onclick = (e) => { const b = e.target.closest(".fdot"); if (!b) return; findIdx = +b.dataset.k; renderFindCard(true, true); };
+  $("fPrev").onclick = () => stepFinding(-1);
+  $("fNext").onclick = () => stepFinding(1);
+  $("finder").addEventListener("keydown", (e) => {
+    if (!e.target.closest(".fstep") || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+    e.preventDefault(); stepFinding(e.key === "ArrowRight" ? 1 : -1);
+  });
+  [0, 1, 2].forEach((i) => ($("outTab" + i).onclick = () => { outTab = i; syncOut(); }));
+  $("upload").onclick = () => $("fileIn").click();
+  $("fileIn").onchange = (e) => { readFileInto(e.target.files[0]); e.target.value = ""; };
+  const ta = $("report");
+  ta.addEventListener("dragover", (e) => { e.preventDefault(); ta.classList.add("drop"); });
+  ta.addEventListener("dragleave", () => ta.classList.remove("drop"));
+  ta.addEventListener("drop", (e) => { e.preventDefault(); ta.classList.remove("drop"); readFileInto(e.dataTransfer.files[0]); });
+}
+
+/* ---------- hyper text: the title scrambles through A-Z and settles left to right (on load and on hover) ---------- */
+function hyperText(el, { duration = 800 } = {}) {
+  const text = el.textContent.trim(), A = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  el.textContent = "";
+  const real = document.createElement("span"); real.className = "sr-only"; real.textContent = text;
+  const box = document.createElement("span"); box.className = "hyper"; box.setAttribute("aria-hidden", "true");
+  const letters = [...text].map((ch) => {
+    const s = document.createElement("span"); s.className = "hl" + (ch === " " ? " sp" : ""); s.textContent = ch === " " ? "\u00a0" : ch;
+    box.append(s); return s;
+  });
+  el.append(real, box);
+  let raf = 0;
+  const run = () => {
+    if (reduce()) return;                       // reduced motion: the title just stays put
+    cancelAnimationFrame(raf);
+    const start = performance.now();
+    const tick = (now) => {
+      const done = ((now - start) / duration) * text.length;   // letters before this index are settled
+      letters.forEach((s, i) => { if (text[i] !== " ") s.textContent = i <= done ? text[i] : A[Math.floor(Math.random() * 26)]; });
+      if (done < text.length) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    if (canAnim()) gsap.fromTo(letters, { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out", stagger: 0.02, clearProps: "opacity,transform" });
+  };
+  box.addEventListener("mouseenter", run);
+  run();
+}
 async function init() {
+  wireInput();
+  hyperText($("title"));
   $("quick").onclick = () => live("quick"); $("best").onclick = () => live("best");
   $("glossToggle").onchange = () => current && render(current);
   const setMode = (m) => { mapMode = m; syncMapMode(); if (current) render(current); };
@@ -703,11 +1004,24 @@ async function init() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && active) setActive(active); });
   startViewer();
   renderCaption();
-  examples = await (await fetch("/api/examples")).json();
-  $("chips").innerHTML = examples.map((e, i) => `<button class="chip" type="button" aria-pressed="false" data-i="${i}">${esc(e.title)}</button>`).join("");
+  try {
+    const r = await fetch("/api/examples");
+    if (!r.ok) throw new Error(r.statusText);
+    examples = await r.json();
+  } catch (e) {
+    examples = [];
+    const msg = "Examples could not load. Paste a report instead.";
+    $("chips").textContent = msg;
+    $("outpanel").innerHTML = `<p class="muted">${msg}</p>`;
+  }
+  $("chips").innerHTML = !examples.length ? $("chips").innerHTML : examples.map((e, i) => `<button class="chip" type="button" aria-pressed="false" data-i="${i}">${esc(e.title)}</button>`).join("");
   document.querySelectorAll(".chip").forEach((c) => (c.onclick = () => pick(+c.dataset.i)));
   if (examples.length) pick(0);
-  const md = (await (await fetch("/api/summary")).json()).markdown;
+  let md = "";
+  try {
+    const r = await fetch("/api/summary");
+    if (r.ok) md = (await r.json()).markdown;
+  } catch (e) { /* the table just stays hidden */ }
   if (md) { $("summary").innerHTML = tableFrom(md); $("heldout").hidden = false; }
 }
 init();
