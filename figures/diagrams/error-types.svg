@@ -23,5 +23,5 @@
   <text x="1438" y="185" font-size="15.5" fill="#596173">Draft never mentions it</text>
   <text x="1438" y="208" font-size="15.5" fill="#596173">Checked by the omission score</text>
   <text x="40" y="350" font-size="17" font-weight="400" fill="#596173" text-anchor="start">A minor wrong explanation of a term is noted as &#x27;f&#x27; and is not counted as an error. Omission is labeled separately from H, N and F.</text>
-  <text x="40" y="382" font-size="17" font-weight="400" fill="#596173" text-anchor="start">Definitions: results/human_labeling/GUIDELINES.md (the same rules were used by the AI labeler).</text>
+  <text x="40" y="382" font-size="17" font-weight="400" fill="#596173" text-anchor="start">Definitions: results/human_labeling/GUIDELINES.md (the same rules were used for labeling).</text>
 </svg>

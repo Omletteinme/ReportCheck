@@ -29,8 +29,7 @@
   <text x="1098" y="275" font-size="15.5" fill="#e8eefc">(unused: nothing was ever trained), each with a plain draft</text>
   <text x="1098" y="298" font-size="15.5" fill="#e8eefc">and a best-of-N pick = 240 outputs, 202 distinct to label</text>
   <rect x="1080" y="400" width="770" height="170" rx="16" fill="#f3f5f8" stroke="#d9dde5" stroke-width="1.5"/>
-  <text x="1098" y="434" font-size="20" font-weight="600" fill="#14171f">Labels (assigned by Claude, an AI)</text>
+  <text x="1098" y="434" font-size="20" font-weight="600" fill="#14171f">Labels (AI-assigned)</text>
   <text x="1098" y="462" font-size="15.5" fill="#596173">H hedge level changed  |  N number or side wrong</text>
   <text x="1098" y="485" font-size="15.5" fill="#596173">F unsupported or wrong content  |  O key finding left out</text>
-  <text x="1098" y="508" font-size="15.5" fill="#596173">Not human labels: teammate labeling was not collected</text>
 </svg>

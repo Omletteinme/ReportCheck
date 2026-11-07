@@ -23,7 +23,7 @@ from src.verify import WEIGHTS  # noqa: E402
 OUT = ROOT / "figures"
 RES = ROOT / "results"
 INK, MUTED, LINE, CARD, ACCENT, GRAY = "#14171f", "#596173", "#d9dde5", "#f3f5f8", "#2453c4", "#8a93a3"
-FOOT = "Labels assigned by Claude (an AI), not by humans. Reports: public Open-i chest X-ray set."
+FOOT = "AI-labeled. Reports: public Open-i chest X-ray set."
 
 plt.rcParams.update({"font.family": ["Segoe UI", "DejaVu Sans"], "font.size": 11, "axes.edgecolor": MUTED, "axes.labelcolor": INK,
                      "text.color": INK, "xtick.color": INK, "ytick.color": INK, "axes.spines.top": False, "axes.spines.right": False})
@@ -173,7 +173,7 @@ def diagram_pipeline():
     s.text(40, 54, "How a report becomes a checked patient draft", 28, INK, 600)
     steps = [("1  Report", ["Open-i report, pasted text,", "or a .txt / .docx / .pdf file"]),
              ("2  Parse", ["Hedge levels, numbers,", "left/right, severity words,", "finding / impression roles"]),
-             ("3  Draft", ["Qwen2.5-1.5B-Instruct", "pretrained, not fine-tuned", "1 plain + 10 sampled drafts"]),
+             ("3  Draft", ["Qwen2.5-1.5B-Instruct", "pretrained, not fine-tuned", "1 plain + 10 drafts (2 greedy,", "8 sampled)"]),
              ("4  Verify", ["Meaning (NLI), numbers,", "sides, hedge level,", "simplicity, coverage"]),
              ("5  Pick", ["Best draft that passes the", "hard checks (best-of-N)"]),
              ("6  Explain", ["Fixed 95-term glossary adds", "plain-language term notes", "(display only)"]),
@@ -223,7 +223,7 @@ def diagram_data():
     s.arrow(980, 175, 1080, 175)
     s.box(1080, 60, 770, 110, "Verifier sets 1 to 3 (40 outputs each)", ["Set 1 and 2: Qwen 1.5B, set 3: Qwen 3B. Labeled blind by Claude."])
     s.box(1080, 190, 770, 190, "Final comparison: 120 unseen reports", ["40 held-out test reports + 80 from the train split", "(unused: nothing was ever trained), each with a plain draft", "and a best-of-N pick = 240 outputs, 202 distinct to label"], accent=True)
-    s.box(1080, 400, 770, 170, "Labels (assigned by Claude, an AI)", ["H hedge level changed  |  N number or side wrong", "F unsupported or wrong content  |  O key finding left out", "Not human labels: teammate labeling was not collected"])
+    s.box(1080, 400, 770, 170, "Labels (AI-assigned)", ["H hedge level changed  |  N number or side wrong", "F unsupported or wrong content  |  O key finding left out"])
     return s
 
 
@@ -238,7 +238,7 @@ def diagram_errors():
     for i, (t, lines) in enumerate(cards):
         s.box(x0 + i * (w + gap), y, w, 190, t, lines)
     s.text(40, 350, "A minor wrong explanation of a term is noted as 'f' and is not counted as an error. Omission is labeled separately from H, N and F.", 17, MUTED)
-    s.text(40, 382, "Definitions: results/human_labeling/GUIDELINES.md (the same rules were used by the AI labeler).", 17, MUTED)
+    s.text(40, 382, "Definitions: results/human_labeling/GUIDELINES.md (the same rules were used for labeling).", 17, MUTED)
     return s
 
 
