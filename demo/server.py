@@ -4,9 +4,10 @@ GET  /              the page
 GET  /api/examples  pre-computed examples (demo/examples.json, made by scripts/build_demo.py)
 GET  /api/summary   comparison table on 120 unseen reports (results/final_summary.md)
 POST /api/extract   raw file bytes + X-Filename header (.txt, .docx, .pdf) -> {"text": str, "chars": int}
+POST /api/simplify  {"report": str} -> rule-based plain-language version, instant, no model (src/plainrules.py)
 POST /api/run       {"report": str, "mode": "quick" | "best"} -> live drafts scored by the verifier
                     quick = baseline draft + structured draft, best of the two (~30 s)
-                    best  = best of 10 sampled drafts plus the baseline draft (~2-3 min)
+                    best  = best of 10 drafts (2 greedy, 8 sampled) plus the baseline draft (~2-3 min)
 The model loads on the first live request. One request runs at a time (single GPU).
 """
 import json
@@ -83,6 +84,23 @@ def run(report: str, mode: str) -> dict:
     }
 
 
+def simplify_report(report: str) -> dict:
+    """Rule-based plain-language version (src/plainrules.py): instant, no model, no GPU."""
+    import textstat
+
+    from src.glossary import gloss_sentences
+    from src.plainrules import simplify
+
+    result = simplify(report)
+    before = " ".join(s["source"] for s in result["sentences"])
+    glossed = gloss_sentences([s["text"] for s in result["sentences"]])   # explanations for terms the rules left in
+    return {"text": result["text"], "changed": result["changed"], "total": result["total"],
+            "sentences": [{"source": s["source"], "text": s["text"], "changed": s["text"] != s["source"],
+                           "parts": [{"t": t, "gloss": g} for t, g in x["parts"]]}
+                          for s, x in zip(result["sentences"], glossed)],
+            "fk_before": textstat.flesch_kincaid_grade(before), "fk_after": textstat.flesch_kincaid_grade(result["text"])}
+
+
 class Handler(BaseHTTPRequestHandler):
     def _send(self, status: int, body: bytes, ctype: str):
         self.send_response(status)
@@ -128,6 +146,15 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path == "/api/extract":
             return self._extract()
+        if self.path == "/api/simplify":
+            try:
+                body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+                report = str(body.get("report", "")).strip()
+            except (ValueError, TypeError):
+                return self._json(400, {"error": "invalid request"})
+            if not report or len(report) > MAX_REPORT_CHARS:
+                return self._json(400, {"error": f"need a report of 1-{MAX_REPORT_CHARS} characters"})
+            return self._json(200, simplify_report(report))
         if self.path != "/api/run":
             return self._json(404, {"error": "not found"})
         try:

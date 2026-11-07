@@ -31,6 +31,21 @@ def _index() -> tuple[dict[str, dict], re.Pattern]:
     return forms, pattern
 
 
+def find_terms(text: str) -> list[dict]:
+    """[{term, text, plain}] for each glossary term in the text, once per term, in order of appearance."""
+    forms, pattern = _index()
+    found: dict[str, dict] = {}
+    for m in pattern.finditer(text):
+        entry = forms[m.group(0).lower()]
+        found.setdefault(entry["term"], {"term": entry["term"], "text": m.group(0), "plain": entry["plain"]})
+    return list(found.values())
+
+
+def count_terms(text: str) -> int:
+    """How many glossary terms the text contains (a proxy for how technical it still is)."""
+    return len(_index()[1].findall(text))
+
+
 def gloss_sentences(sentences: list[str], max_glosses: int | None = None) -> list[dict]:
     """[{text, glossed, parts, terms}] per sentence; each term is explained only at its first occurrence overall.
 

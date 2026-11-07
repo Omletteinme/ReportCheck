@@ -4,6 +4,7 @@ import os
 os.environ.setdefault("USE_TF", "0")  # global TF install clashes with protobuf
 
 from .discourse import Report, parse_report
+from .glossary import find_terms
 from .hedge import PATIENT_PHRASE
 
 MODEL = "Qwen/Qwen2.5-1.5B-Instruct"
@@ -45,6 +46,29 @@ def structured_prompt(report: Report, plain: bool = False) -> str:
     rels = [f"[{a}] {rel} [{b}]" for a, rel, b in report.edges] or ["none"]
     rules = _RULES.replace("Rules:\n", "Rules:\n" + _PLAIN_RULE) if plain else _RULES
     return rules + "UNITS:\n" + "\n".join(lines) + "\n\nRELATIONS: " + "; ".join(rels)
+
+
+_SENTENCE_RULES = (
+    "Rewrite ONE sentence of a radiology report in plain language for a patient.\n"
+    "Rules:\n"
+    "- Reply with the rewritten sentence only: one or two short sentences, no parentheses, lists, quotes or headings.\n"
+    "- Use everyday words for medical terms when a plain word exists; otherwise keep the term as written.\n"
+    "- Keep every number with its unit exactly; keep left/right and every size or severity word as written.\n"
+    "- Express the certainty tag: "
+    + "; ".join(f"{k} = {v}" for k, v in PATIENT_PHRASE.items())
+    + ". Never add hedging to a definite sentence.\n"
+    "- Add nothing: no explanations, diagnoses, causes, reassurance, advice or next steps.\n"
+    "- The neighbouring sentences are context only: do not rewrite or repeat them.\n\n"
+)
+
+
+def sentence_prompt(unit, before: str = "", after: str = "") -> str:
+    """Prompt to rewrite one report sentence (a discourse.Unit) with its neighbours as context."""
+    nums = ", ".join(f"{v:g} {u}" for v, u in unit.numbers) or "none"
+    terms = "; ".join(f"{t['term']} = {t['plain']}" for t in find_terms(unit.text))
+    approved = f"Approved plain wording (use exactly this to replace a term, or keep the term): {terms}\n" if terms else ""
+    return (_SENTENCE_RULES + f"Previous sentence: {before or 'none'}\nNext sentence: {after or 'none'}\n\n"
+            f"{approved}CERTAINTY: {unit.certainty}\nNUMBERS: {nums}\nSENTENCE: {unit.text}")
 
 
 def build_prompt(text: str, mode: str = "structured") -> str:

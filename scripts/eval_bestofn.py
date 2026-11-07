@@ -71,7 +71,7 @@ def output_rows(rid: str, source: str, plain: str, ranked: list) -> list[dict]:
     return [{"system": "plain", "report_id": rid, "source": source, "output": plain},
             {"system": "best_of_n", "report_id": rid, "source": source,
              "output": best.text if best else plain, "n_candidates": len(ranked),
-             "acceptable": bool(best and acceptable(best.score)), "fallback": best is None}]
+             "acceptable": bool(best and acceptable(best.score))}]   # False: no draft passed the hard checks
 
 
 def rescore(key: str):
