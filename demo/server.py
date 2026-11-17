@@ -2,13 +2,13 @@
 
 GET  /              the page
 GET  /api/examples  pre-computed examples (demo/examples.json, made by scripts/build_demo.py)
-GET  /api/summary   comparison table on 120 unseen reports (results/final_summary.md)
+GET  /api/summary   four-system comparison on 120 unseen reports (results/system_comparison.md)
 POST /api/extract   raw file bytes + X-Filename header (.txt, .docx, .pdf) -> {"text": str, "chars": int}
 POST /api/simplify  {"report": str} -> rule-based plain-language version, instant, no model (src/plainrules.py)
-POST /api/run       {"report": str, "mode": "quick" | "best"} -> live drafts scored by the verifier
-                    quick = baseline draft + structured draft, best of the two (~30 s)
-                    best  = best of 10 drafts (2 greedy, 8 sampled) plus the baseline draft (~2-3 min)
-The model loads on the first live request. One request runs at a time (single GPU).
+POST /api/run       {"report": str} -> the trained T5 hybrid and the rule-based version, both scored by the verifier
+                    T5 writes candidate rewrites sentence by sentence; one is used only if it passes every meaning check,
+                    otherwise the rule-based sentence (src/sentencewise.py, src/plainrules.py). A few seconds on the GPU.
+The models load on the first live request. One request runs at a time (single GPU).
 """
 import json
 import sys
@@ -52,35 +52,35 @@ def static_file(url_path: str, roots=None, files=None) -> tuple[Path, str] | Non
 
 def models():
     if not _models:
-        from src.generate import Generator
+        from src.t5gen import T5Generator
         from src.verify import Verifier
 
-        _models["gen"], _models["verifier"] = Generator(), Verifier()
+        _models["gen"], _models["verifier"] = T5Generator(), Verifier()
     return _models["gen"], _models["verifier"]
 
 
-def run(report: str, mode: str) -> dict:
-    from src.bestofn import acceptable, best_of_n, choose, rank
-    from src.generate import build_prompt
+def run(report: str, mode: str = "hybrid") -> dict:
+    """The trained T5 hybrid (`selected`) next to the rule-based version (`plain`), each with the verifier's explanation.
+
+    `mode` is accepted for older clients and ignored: there is one live pipeline."""
     from src.glossary import annotate
+    from src.plainrules import simplify, simplify_sentence
+    from src.sentencewise import simplify as hybrid_simplify
+    from src.t5gen import t5_prompt
 
     gen, verifier = models()
-    plain = gen.generate(build_prompt(report, "baseline"), max_new_tokens=400)[0]
-    if mode == "best":
-        ranked = best_of_n(gen, verifier, report, 8, extra=(plain,), max_new_tokens=400)
-    else:
-        drafts = [plain, gen.generate(build_prompt(report, "structured"), max_new_tokens=400)[0]]
-        ranked = rank(verifier, report, [d for d in dict.fromkeys(drafts) if d])
-    best = choose(ranked)
-    selected = best.text if best else plain
-    explained = {"plain": (plain, verifier.explain(report, plain)), "selected": (selected, verifier.explain(report, selected))}
+    rules_text = simplify(report)["text"]
+    result = hybrid_simplify(gen, verifier.entail_fn, report, fallback=lambda s: simplify_sentence(s)[0], vocab=False, guard=True,
+                             n=3, temperature=0.8, max_new_tokens=128, prompt_fn=t5_prompt)
+    explained = {"plain": (rules_text, verifier.explain(report, rules_text)),
+                 "selected": (result["text"], verifier.explain(report, result["text"]))}
     for _, e in explained.values():
         e["sentences"] = annotate(e["sentences"])
     return {
-        "source": report, "mode": mode, "n_candidates": len(ranked),
-        "acceptable": bool(best and acceptable(best.score)),
-        "plain": {"text": plain, "explain": explained["plain"][1]},
-        "selected": {"text": selected, "explain": explained["selected"][1]},
+        "source": report, "mode": "hybrid", "n_candidates": result["rewritten"], "acceptable": True,
+        "units": {"model": result["rewritten"], "rules": result["rules"], "total": result["total"]},
+        "plain": {"text": explained["plain"][0], "explain": explained["plain"][1]},
+        "selected": {"text": explained["selected"][0], "explain": explained["selected"][1]},
     }
 
 
@@ -119,7 +119,9 @@ class Handler(BaseHTTPRequestHandler):
             path = DEMO / "examples.json"
             self._json(200, json.loads(path.read_text(encoding="utf-8")) if path.exists() else [])
         elif self.path == "/api/summary":
-            path = ROOT / "results" / "final_summary.md"
+            path = ROOT / "results" / "system_comparison.md"
+            if not path.exists():
+                path = ROOT / "results" / "final_summary.md"
             self._json(200, {"markdown": path.read_text(encoding="utf-8") if path.exists() else ""})
         elif found := static_file(self.path):
             file, mime = found
@@ -159,11 +161,11 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(404, {"error": "not found"})
         try:
             body = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
-            report, mode = str(body.get("report", "")).strip(), body.get("mode", "quick")
+            report, mode = str(body.get("report", "")).strip(), body.get("mode", "hybrid")
         except (ValueError, TypeError):
             return self._json(400, {"error": "invalid request"})
-        if not report or len(report) > MAX_REPORT_CHARS or mode not in ("quick", "best"):
-            return self._json(400, {"error": f"need a report of 1-{MAX_REPORT_CHARS} characters and mode quick|best"})
+        if not report or len(report) > MAX_REPORT_CHARS:
+            return self._json(400, {"error": f"need a report of 1-{MAX_REPORT_CHARS} characters"})
         if not _lock.acquire(blocking=False):
             return self._json(409, {"error": "another request is still running, try again in a minute"})
         try:

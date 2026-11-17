@@ -194,8 +194,6 @@
   .col .tagline { color: var(--muted); font-size: var(--fs-sm); margin: 2px 0 var(--sp-3); }
   .sent { margin: 0 0 var(--sp-2); padding: 2px 0 2px var(--sp-3); border-left: 3px solid transparent; overflow-wrap: anywhere; }
   .sent.unsupported { border-left-color: var(--bad); background: color-mix(in srgb, var(--flag-bg) 55%, transparent); }
-  .sent.reworded { border-left-color: var(--accent); }
-  .simp-note { color: var(--muted); font-size: var(--fs-sm); margin: var(--sp-3) 0 0; }
   mark.flag { position: relative; background: var(--flag-bg); color: inherit; border-bottom: 2px solid var(--bad); border-radius: var(--r-xs); padding: 0 1px; }
   mark.flag:is(:hover, :focus-visible)::after { content: attr(data-tip); position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 6; width: max-content; max-width: min(240px, 70vw); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-md); background: var(--ink); color: var(--on-ink); font-size: var(--fs-sm); font-weight: 500; line-height: 1.35; box-shadow: var(--shadow-2); pointer-events: none; }
   /* hedge level: text stays in ink, the level is the underline style (dotted possible, dashed likely, solid unlikely) */
@@ -431,9 +429,7 @@
           <label class="toggle"><input type="checkbox" id="glossToggle" checked> Explain medical terms</label>
         </div>
         <div class="row">
-          <button class="cta" id="simplify" type="button"><span>Simplify <small>instant</small></span><span class="cta-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></span></button>
-          <button class="ghost" id="quick" type="button">Quick check <small>about 30 s</small></button>
-          <button class="ghost" id="best" type="button">Best of 8 <small>about 2-3 min</small></button>
+          <button class="cta" id="quick" type="button"><span>Simplify <small>a few seconds</small></span><span class="cta-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12L12 4M5.5 4H12v6.5"/></svg></span></button>
         </div>
         <div id="runbar" aria-hidden="true"></div>
         <div class="row"><span id="status" role="status" aria-live="polite"></span><span id="tick" aria-hidden="true"></span></div>
@@ -443,10 +439,9 @@
       <section class="card result" id="result" aria-labelledby="resh">
         <div class="res-head">
           <h2 class="panel-h" id="resh">Output and flags</h2>
-          <div class="seg" role="group" aria-label="Which draft to show">
-            <button type="button" class="seg-b" id="outTab3" aria-pressed="true">Simplified</button>
-            <button type="button" class="seg-b" id="outTab2" aria-pressed="false">Checked draft</button>
-            <button type="button" class="seg-b" id="outTab1" aria-pressed="false">Plain draft</button>
+          <div class="seg" role="group" aria-label="Which version to show">
+            <button type="button" class="seg-b" id="outTab2" aria-pressed="true">Trained model + checks</button>
+            <button type="button" class="seg-b" id="outTab1" aria-pressed="false">Rules only</button>
             <button type="button" class="seg-b" id="outTab0" aria-pressed="false">Original</button>
           </div>
         </div>
@@ -464,7 +459,7 @@
           <p class="fscore" id="fscore"></p>
           <p class="fscore" id="findsub">Places are guessed from words like "right lung" or "heart", so they show what the text talks about, not exact positions. Check them against the report.</p>
         </div>
-        <div id="outpanel" class="outpanel"><p class="muted">Pick an example or run a check to see the draft and what the checker flagged.</p></div>
+        <div id="outpanel" class="outpanel"><p class="muted">Pick an example or press Simplify to see the simplified report and what the checker flagged.</p></div>
         <div class="key" role="group" aria-label="Legend">
           <span><mark class="flag">word</mark> checker flag (hover or focus for why)</span>
           <span><span class="h-possible">possible</span> / <span class="h-likely">likely</span> / <span class="h-unlikely">unlikely</span> hedge level</span>
@@ -586,7 +581,7 @@ const GLYPH = { finding: "!", uncertain: "?", normal: "&#10003;" };
 const STATUS_TEXT = { finding: "Finding", uncertain: "Hedged finding", normal: "Normal or none reported" };
 
 let findings = [], regions = new Map(), active = null;
-let mapMode = "patient";   // "patient" = the checked draft's sentences (with term explanations); "original" = the radiologist's text
+let mapMode = "patient";   // "patient" = the simplified (trained model + checks) sentences (with term explanations); "original" = the radiologist's text
 const mapSentences = (ex) => (mapMode === "patient" ? ex.selected.explain.sentences : ex.plain.explain.source_sentences);
 function analyse(ex) {
   findings = mapSentences(ex).map((s, i) => ({ i, s, status: statusOf(s), regions: regionsOf(s.text) }));
@@ -833,38 +828,10 @@ function swapIn() {
 }
 
 /* ---------- right column: the draft chosen with the tabs, with its flags ---------- */
-let outTab = 3, columns = [];
-const simpCache = new Map();
-const currentSource = () => $("report").value.trim() || (current && current.source) || "";
-function simplifiedColumn(d) {
-  const words = (s) => ($("glossToggle").checked && s.parts ? s.parts.map((p) => p.gloss ? `<span class="gloss" title="${GLOSS_TIP}">${esc(p.t)}</span>` : esc(p.t)).join("") : esc(s.text));
-  const sents = d.sentences.map((s) => `<p class="sent ${s.changed ? "reworded" : ""}"${s.changed ? ` title="${esc("Original: " + s.source)}"` : ""}>${words(s)}</p>`).join("");
-  return `<div class="col"><h3>Simplified version</h3><p class="tagline">Reviewed word and phrase swaps. No AI model writes this text.</p>${sents}` +
-    `<p class="simp-note">Reading grade ${d.fk_before.toFixed(1)} → ${d.fk_after.toFixed(1)}. ${d.changed} of ${d.total} sentences reworded (blue bar; hover for the original). ` +
-    `After every swap the numbers, sides, severity words, hedges and negations are checked, and a sentence that changed in any of them stays as written. ` +
-    `The word list was drafted with AI help and has not been reviewed by a clinician.</p></div>`;
-}
-async function showSimplified() {
-  const text = currentSource();
-  if (!text) { $("outpanel").innerHTML = '<p class="muted">Pick an example or paste a report, then press Simplify.</p>'; return; }
-  if (!simpCache.has(text)) {
-    $("outpanel").innerHTML = '<p class="muted">Simplifying…</p>';
-    try {
-      const res = await fetch("/api/simplify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ report: text }) });
-      const d = await res.json().catch(() => null);
-      if (!res.ok || !d) throw new Error((d && d.error) || res.statusText || "Request failed");
-      simpCache.set(text, d);
-    } catch (e) {
-      if (outTab === 3) $("outpanel").innerHTML = `<p class="muted">${esc(e instanceof TypeError ? "Can't reach the server. Check that it is running." : e.message)}</p>`;
-      return;
-    }
-  }
-  if (outTab === 3 && currentSource() === text) $("outpanel").innerHTML = simplifiedColumn(simpCache.get(text));
-}
+let outTab = 2, columns = [];
 function syncOut() {
-  [0, 1, 2, 3].forEach((i) => $("outTab" + i).setAttribute("aria-pressed", String(i === outTab)));
-  $("finder").style.display = outTab === 3 ? "none" : "";   // the explorer describes the AI drafts, not the simplified text
-  if (outTab === 3) showSimplified(); else if (columns[outTab]) $("outpanel").innerHTML = columns[outTab];
+  [0, 1, 2].forEach((i) => $("outTab" + i).setAttribute("aria-pressed", String(i === outTab)));
+  if (columns[outTab]) $("outpanel").innerHTML = columns[outTab];
 }
 const UPLOAD_TYPES = [".txt", ".docx", ".pdf"];
 const MAX_REPORT_CHARS = 3000;   // the live checker's limit (demo/server.py)
@@ -882,7 +849,7 @@ async function readFileInto(file) {
     document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
     say(data.chars > MAX_REPORT_CHARS
       ? `Loaded ${file.name}, but it has ${data.chars} characters and the checker takes up to ${MAX_REPORT_CHARS}. Trim it to the report itself.`
-      : "Loaded " + file.name + ". Press Simplify, or Quick check to run the AI drafts.", data.chars > MAX_REPORT_CHARS);
+      : "Loaded " + file.name + ". Press Simplify to run it.", data.chars > MAX_REPORT_CHARS);
   } catch (e) {
     say(e instanceof TypeError ? "Can't reach the server. Check that it is running." : e.message, true);
   }
@@ -896,13 +863,11 @@ function render(ex) {
   if (changed) { findFilter = "all"; findIdx = 0; }
   analyse(ex); renderMarkers(); renderFindings();
   if (keep && regions.has(keep)) setActive(keep, true); else renderCaption();
-  columns = [sourceColumn(ex), outputColumn("Plain draft", "One draft, no checking", ex.plain),
-    outputColumn("Checked draft", ex.n_candidates ? `Best of ${ex.n_candidates} drafts, picked by the checker` : "Picked by the checker", ex.selected)];
+  const u = ex.units;
+  columns = [sourceColumn(ex), outputColumn("Rules only", "Word-list swaps, no AI model", ex.plain),
+    outputColumn("Trained model + checks", u ? `${u.model} of ${u.total} sentences written by the trained model, the rest use the rule-based wording or stay as written` : "Model sentences are used only when they pass every meaning check", ex.selected)];
   syncOut();
-  const a = ex.plain.explain.score.total, b = ex.selected.explain.score.total;
-  const same = ex.plain.text === ex.selected.text;
-  $("fscore").textContent = same ? "The checker kept the plain draft here (no better candidate found)." :
-    `Checker score: ${b.toFixed(2)} for the checked draft, ${a.toFixed(2)} for the plain draft.` + (ex.acceptable ? "" : " No draft passed every hard check, so the top-scoring one is shown.");
+  $("fscore").textContent = u ? `${u.model} of ${u.total} sentences were rewritten by the trained model and passed every check; ${u.rules} use the rule-based wording and the rest stay as written.` : "";
   if (changed && canAnim()) swapIn();
 }
 
@@ -931,7 +896,7 @@ function progressStart(mode) {
   if (!canAnim()) return;
   const bar = $("runbar");
   gsap.set(bar, { scaleX: 0, opacity: 1 });
-  creep = gsap.to(bar, { scaleX: 0.9, duration: mode === "best" ? 150 : 30, ease: "power1.out" });
+  creep = gsap.to(bar, { scaleX: 0.9, duration: 15, ease: "power1.out" });
 }
 function progressFinish(ok) {
   const bar = $("runbar");
@@ -953,7 +918,7 @@ async function live(mode) {
   $("report").removeAttribute("aria-invalid");
   document.querySelectorAll(".chip").forEach((c) => c.setAttribute("aria-pressed", "false"));
   running = true; setBusy(true); dimResults(true); progressStart(mode);
-  $("quick").setAttribute("aria-disabled", "true"); $("best").setAttribute("aria-disabled", "true");
+  $("quick").setAttribute("aria-disabled", "true");
   const t0 = Date.now(); let cold = true;
   say("Working…");
   const timer = setInterval(() => { $("tick").textContent = ` ${Math.round((Date.now() - t0) / 1000)} s` + (cold ? " (first run loads the model)" : ""); }, 500);
@@ -965,7 +930,7 @@ async function live(mode) {
     dimResults(false, true); progressFinish(true);
     render(data); say(`Done in ${Math.round((Date.now() - t0) / 1000)} s.`);
   } catch (e) { say("Failed: " + e.message, true); progressFinish(false); }
-  finally { clearInterval(timer); $("tick").textContent = ""; running = false; setBusy(false); dimResults(false); progressKill(); $("quick").removeAttribute("aria-disabled"); $("best").removeAttribute("aria-disabled"); }
+  finally { clearInterval(timer); $("tick").textContent = ""; running = false; setBusy(false); dimResults(false); progressKill(); $("quick").removeAttribute("aria-disabled"); }
 }
 function tableFrom(md) {
   const rows = md.split("\n").filter((l) => l.startsWith("|") && !/^\|[-| ]+\|$/.test(l)).map((l) => l.split("|").slice(1, -1).map((c) => c.trim()));
@@ -983,7 +948,7 @@ function wireInput() {
     if (!e.target.closest(".fstep") || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
     e.preventDefault(); stepFinding(e.key === "ArrowRight" ? 1 : -1);
   });
-  [0, 1, 2, 3].forEach((i) => ($("outTab" + i).onclick = () => { outTab = i; syncOut(); }));
+  [0, 1, 2].forEach((i) => ($("outTab" + i).onclick = () => { outTab = i; syncOut(); }));
   $("upload").onclick = () => $("fileIn").click();
   $("fileIn").onchange = (e) => { readFileInto(e.target.files[0]); e.target.value = ""; };
   const ta = $("report");
@@ -1022,13 +987,8 @@ function hyperText(el, { duration = 800 } = {}) {
 async function init() {
   wireInput();
   hyperText($("title"));
-  $("quick").onclick = () => live("quick"); $("best").onclick = () => live("best");
-  $("simplify").onclick = () => {
-    if (!$("report").value.trim()) { say("Paste a report first.", true); $("report").setAttribute("aria-invalid", "true"); $("report").focus(); return; }
-    $("report").removeAttribute("aria-invalid"); say("");
-    outTab = 3; syncOut();
-  };
-  $("glossToggle").onchange = () => (current ? render(current) : syncOut());
+  $("quick").onclick = () => live("hybrid");
+  $("glossToggle").onchange = () => current && render(current);
   const setMode = (m) => { mapMode = m; syncMapMode(); if (current) render(current); };
   const setView = (mode) => {
     $("viewChest").setAttribute("aria-pressed", String(mode === "chest")); $("viewBody").setAttribute("aria-pressed", String(mode === "body"));

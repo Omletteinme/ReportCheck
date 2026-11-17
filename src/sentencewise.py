@@ -15,6 +15,7 @@ from .discourse import parse_report
 from .generate import sentence_prompt
 from .glossary import count_terms, find_terms
 from .hedge import sentence_certainty
+from .plainrules import simplify_sentence
 from .verify import _fk_grade
 
 MIN_FORWARD, MIN_BACK = 0.8, 0.6  # NLI: source entails rewrite / rewrite entails source (the latter catches dropped content)
@@ -75,6 +76,21 @@ def word_changes(source: str, rewrite: str) -> str | None:
     return None
 
 
+def dropped_terms(source: str, rewrite: str) -> list[str]:
+    """Glossary terms of the source that the rewrite neither keeps nor replaces with reviewed plain wording (the
+    glossary's explanation, or the wording the rule table gives for that term)."""
+    out = _content(rewrite)
+    lost = []
+    for t in find_terms(source):
+        if _content(t["text"]) <= out:
+            continue
+        wordings = [t["plain"], simplify_sentence(t["text"])[0]]
+        if any(_uses_plain(w, out) for w in wordings if w.lower() != t["text"].lower()):
+            continue
+        lost.append(t["term"])
+    return lost
+
+
 def clean(text: str) -> str:
     """One line, no surrounding quotes or bullets."""
     text = " ".join(text.split()).strip("\"'`*-• ")
@@ -85,8 +101,12 @@ def _words(text: str) -> list[str]:
     return re.findall(r"\w+", text)
 
 
-def rejection(source: str, rewrite: str, entail_fn=None) -> str | None:
-    """Why `rewrite` may not replace `source` (None when it may). `entail_fn(premise, hypotheses)` is the NLI scorer."""
+def rejection(source: str, rewrite: str, entail_fn=None, vocab: bool = True, guard: bool = False) -> str | None:
+    """Why `rewrite` may not replace `source` (None when it may). `entail_fn(premise, hypotheses)` is the NLI scorer.
+
+    `vocab=False` skips the closed-vocabulary rule, for a generator trained on plain-language text that legitimately
+    uses everyday words the glossary does not list; every other check still applies. `guard=True` rejects a rewrite that
+    drops a medical term without reviewed plain wording ("consolidation" -> "thickening")."""
     if not rewrite:
         return "empty"
     if not rewrite.endswith((".", "!", "?")):
@@ -113,9 +133,11 @@ def rejection(source: str, rewrite: str, entail_fn=None) -> str | None:
         return "certainty changed"
     if bool(_NEGATION.search(source)) != bool(_NEGATION.search(rewrite)):
         return "negation changed"
-    changed = word_changes(source, rewrite)
+    changed = word_changes(source, rewrite) if vocab else None
     if changed:
         return changed
+    if guard and (lost := dropped_terms(source, rewrite)):
+        return "medical term changed: " + ", ".join(lost)
     simpler = _fk_grade(rewrite) <= _fk_grade(source) - MIN_FK_GAIN or count_terms(rewrite) < count_terms(source)
     if not simpler:
         return "not simpler"
@@ -128,27 +150,32 @@ def rejection(source: str, rewrite: str, entail_fn=None) -> str | None:
 
 
 def generate_candidates(generator, source: str, n: int = 3, temperature: float = 0.8,
-                        max_new_tokens: int = 120) -> list[list[str]]:
+                        max_new_tokens: int = 120, prompt_fn=None) -> list[list[str]]:
     """Per source sentence: one greedy rewrite plus `n` sampled ones, deduplicated. Sentences that are kept as written
-    (contain XXXX, or are very short) get no candidates."""
+    (contain XXXX, or are very short) get no candidates. `prompt_fn(unit, before, after)` builds the prompt
+    (default: the Qwen sentence prompt)."""
     units = parse_report(source).units
     result = []
     for i, unit in enumerate(units):
         if "XXXX" in unit.text or len(_words(unit.text)) < MIN_WORDS:
             result.append([])
             continue
-        prompt = sentence_prompt(unit, units[i - 1].text if i else "", units[i + 1].text if i + 1 < len(units) else "")
+        prompt = (prompt_fn or sentence_prompt)(unit, units[i - 1].text if i else "", units[i + 1].text if i + 1 < len(units) else "")
         texts = generator.generate(prompt, n=1, max_new_tokens=max_new_tokens)
         texts += generator.generate(prompt, n=n, temperature=temperature, max_new_tokens=max_new_tokens)
         result.append(list(dict.fromkeys(t for t in map(clean, texts) if t)))
     return result
 
 
-def assemble(source: str, candidates: list[list[str]], entail_fn=None) -> dict:
-    """Pick the simplest rewrite that passes every check for each sentence; keep the source sentence otherwise.
+def assemble(source: str, candidates: list[list[str]], entail_fn=None, fallback=None, vocab: bool = True,
+             guard: bool = False) -> dict:
+    """Pick the simplest rewrite that passes every check for each sentence.
 
-    Returns {"text", "units": [{"source", "text", "status": "rewritten" | "kept", "reason", "candidates"}],
-    "rewritten", "total"}.
+    When none passes, `fallback(sentence)` supplies the text (for example the rule-based rewrite); without a fallback, or
+    when it returns the sentence unchanged, the source sentence is kept.
+
+    Returns {"text", "units": [{"source", "text", "status": "rewritten" | "rules" | "kept", "reason", "candidates"}],
+    "rewritten", "rules", "total"}.
     """
     units = parse_report(source).units
     if len(units) != len(candidates):
@@ -160,15 +187,20 @@ def assemble(source: str, candidates: list[list[str]], entail_fn=None) -> dict:
         elif len(_words(unit.text)) < MIN_WORDS:
             reason, passing = "already short", []
         else:
-            verdicts = [(c, rejection(unit.text, c, entail_fn)) for c in cands]
+            verdicts = [(c, rejection(unit.text, c, entail_fn, vocab, guard)) for c in cands]
             passing = [c for c, why in verdicts if why is None]
             reason = Counter(why for _, why in verdicts).most_common(1)[0][0] if verdicts else "no rewrite produced"
         best = min(passing, key=_fk_grade) if passing else None
-        out.append({"source": unit.text, "text": best or unit.text, "status": "rewritten" if best else "kept",
+        text, status = best, "rewritten"
+        if best is None:
+            text = fallback(unit.text) if fallback else unit.text
+            status = "rules" if text != unit.text else "kept"
+        out.append({"source": unit.text, "text": text, "status": status,
                     "reason": "" if best else reason, "candidates": cands})
     return {"text": " ".join(u["text"] for u in out), "units": out,
-            "rewritten": sum(u["status"] == "rewritten" for u in out), "total": len(out)}
+            "rewritten": sum(u["status"] == "rewritten" for u in out),
+            "rules": sum(u["status"] == "rules" for u in out), "total": len(out)}
 
 
-def simplify(generator, entail_fn, source: str, **kwargs) -> dict:
-    return assemble(source, generate_candidates(generator, source, **kwargs), entail_fn)
+def simplify(generator, entail_fn, source: str, fallback=None, vocab: bool = True, guard: bool = False, **kwargs) -> dict:
+    return assemble(source, generate_candidates(generator, source, **kwargs), entail_fn, fallback, vocab, guard)

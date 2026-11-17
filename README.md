@@ -46,7 +46,7 @@ Human labeling: send each teammate `results/human_labeling/GUIDELINES.md` and th
 
 ## Demo
     .venv/Scripts/python scripts/eval_bestofn.py --reports heldout   # GPU, resumable: plain LLM vs best-of-N on 40 held-out reports
-    .venv/Scripts/python scripts/build_demo.py                       # picks examples -> demo/examples.json
+    .venv/Scripts/python scripts/build_demo.py                       # picks examples from results/t5_eval.jsonl -> demo/examples.json (needs models/t5-lay/)
     .venv/Scripts/python demo/server.py                              # then open http://localhost:8000
 
 The page explains medical terms from `data/glossary.csv` (fixed, human-reviewable, never AI-written);

@@ -3,7 +3,7 @@ import pytest
 from src.discourse import parse_report
 from src.generate import sentence_prompt
 from src.glossary import find_terms
-from src.sentencewise import assemble, clean, generate_candidates, rejection, simplify, word_changes
+from src.sentencewise import assemble, clean, dropped_terms, generate_candidates, rejection, simplify, word_changes
 
 SRC = "There is no pleural effusion or pneumothorax."                 # a sentence that can be rewritten safely
 GOOD = "No fluid around the lungs or collapsed lung on X-ray."
@@ -150,3 +150,48 @@ def test_simplify_end_to_end_with_a_fake_generator():
     result = simplify(gen, sure, SOURCE)
     assert result["units"][0]["text"] == GOOD
     assert result["units"][0]["candidates"] == [GOOD, POSSIBLE]
+
+
+def test_vocab_false_lets_everyday_words_through_but_keeps_the_other_checks():
+    everyday = "No fluid around the lungs or air leak."
+    assert "new word" in (rejection(SRC, everyday, sure) or "")
+    assert rejection(SRC, everyday, sure, vocab=False) is None
+    assert rejection(NODULE, "There is a 16 mm growth in the right lower lobe.", sure, vocab=False) == "number changed"
+    assert "certainty" in rejection(NODULE, "There may be a 6 mm growth in the right lower lobe.", sure, vocab=False)
+
+
+def test_a_custom_prompt_function_reaches_the_generator():
+    gen = FakeGenerator({})
+    generate_candidates(gen, f"{NODULE} No pneumothorax.", prompt_fn=lambda unit, before, after: "simplify: " + unit.text + "\nSENTENCE: " + unit.text)
+    assert gen.prompts and gen.prompts[0].startswith("simplify: There is a 6 mm")
+
+
+def test_fallback_supplies_the_text_when_no_candidate_passes():
+    upper = lambda s: s.upper()  # noqa: E731
+    result = assemble(SOURCE, [[POSSIBLE], [], [], []], sure, fallback=upper)
+    first = result["units"][0]
+    assert first["status"] == "rules" and first["text"] == first["source"].upper() and first["reason"]
+    assert result["rules"] == 4 and result["rewritten"] == 0
+    kept = assemble(SOURCE, [[POSSIBLE], [], [], []], sure, fallback=lambda s: s)
+    assert kept["units"][0]["status"] == "kept" and kept["rules"] == 0
+
+
+def test_a_passing_rewrite_wins_over_the_fallback():
+    result = assemble(SOURCE, [[GOOD], [], [], []], sure, fallback=lambda s: "FALLBACK")
+    assert result["units"][0]["status"] == "rewritten" and result["units"][0]["text"] == GOOD
+
+
+def test_term_guard_rejects_a_dropped_medical_term_but_accepts_reviewed_wording():
+    src = "There is consolidation in the right lower lobe."
+    assert rejection(src, "There are signs of thickening in the right lower lobe.", sure, vocab=False, guard=True).startswith("medical term changed")
+    assert rejection(src, "There are signs of thickening in the right lower lobe.", sure, vocab=False) is None   # guard off
+    # the glossary's own wording for the term is accepted
+    ok = "There is lung tissue filled with fluid or pus in the right lower lobe."
+    assert rejection(src, ok, sure, vocab=False, guard=True) is None
+    # the wording from the rule table is accepted too
+    assert rejection("No pleural effusion or pneumothorax.", "No fluid around the lungs or air leak around the lung.", sure, vocab=False, guard=True) is None
+
+
+def test_term_guard_passes_a_rewrite_that_keeps_the_term():
+    assert dropped_terms("There is consolidation in the right lower lobe.", "A consolidation is seen in the right lower lobe.") == []
+    assert dropped_terms("The heart is normal.", "The heart looks fine.") == []   # no glossary term involved

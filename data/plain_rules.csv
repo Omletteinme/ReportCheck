@@ -9,8 +9,8 @@ cardiomediastinal (?:silhouette|contour|contours),outline of the heart and the m
 mediastinal (?:silhouette|contour|contours),outline of the middle of the chest,
 mediastinal (?:silhouettes),outlines of the middle of the chest,
 cardiopericardial silhouette,outline of the heart,
-focal airspace (?:disease|consolidation|opacity|opacities),fluid or infection in one area of the lung,
-airspace (?:disease|consolidation|opacity|opacities),fluid or infection in the lung,
+focal airspace (?:disease|consolidation|opacity|opacities),fluid or pus in one area of the air sacs of the lung,
+airspace (?:disease|consolidation|opacity|opacities),fluid or pus in the air sacs of the lung,
 focal consolidation,area of lung filled with fluid or pus,
 (small|large|moderate|mild|tiny|trace) bilateral pleural effusions? (?:is|are),\1 amount of fluid around both lungs is,keeps the severity word
 (small|large|moderate|mild|tiny|trace) pleural effusions? (?:is|are),\1 amount of fluid around the lungs is,

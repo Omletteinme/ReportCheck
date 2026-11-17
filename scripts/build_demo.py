@@ -1,8 +1,11 @@
-"""Build demo/examples.json from results/final_eval.jsonl (plain LLM vs best-of-N on 120 unseen reports).
+"""Build demo/examples.json from results/t5_eval.jsonl (the T5 hybrid and the rule-based version on 120 unseen reports).
 
-Picks up to 8 reports to show different cases; the selection is by rule, not by cherry-picking favourable
-results: biggest verifier gain, a number case, a restored hedge, a left/right case, a case where the checker
-found nothing better, a clean case, and the most hedged report. Works on partial data (for testing the page).
+    .venv/Scripts/python scripts/build_demo.py      # needs results/t5_eval.jsonl (scripts/eval_t5.py) and the GPU for the NLI model
+
+Each example carries `selected` (the T5 hybrid with checks) and `plain` (rules only), each with the verifier's explanation.
+The 8 reports are picked by fixed rules to show different cases, not by whether the output looks good: biggest reading-level
+drop, a number case, a left/right case, the most hedged report, the most and the least model-written outputs, an already
+simple report, and one more by reading-level drop.
 """
 import json
 import sys
@@ -14,70 +17,57 @@ from src import numbers  # noqa: E402
 from src.glossary import annotate  # noqa: E402
 from src.verify import Verifier  # noqa: E402
 
-SRC = ROOT / "results" / "final_eval.jsonl"
+RES = ROOT / "results"
 OUT = ROOT / "demo" / "examples.json"
-NOTE = ("Examples were chosen by fixed rules to show different cases, not to be representative. "
-        "The held-out table at the bottom of the page is the fair comparison.")
-
-
-def issues(explain: dict) -> int:
-    s = explain["summary"]
-    return (len(s["unsupported_numbers"]) + len(s["missing_numbers"]) + len(s["wrong_sides"])
-            + len(s["wrong_qualifiers"]) + len(s["dropped_levels"])
-            + sum(any(f["kind"] == "unsupported" for f in x["flags"]) for x in explain["sentences"]))
+NOTE = ("Examples were chosen by fixed rules to show different cases, not to be representative or to look good. "
+        "The table at the bottom of the page is the fair comparison. Labeled error rates there come from an AI labeler, not humans.")
 
 
 def main():
-    rows = [json.loads(line) for line in SRC.read_text(encoding="utf-8").splitlines()]
-    by_report: dict[str, dict] = {}
+    rows = [json.loads(line) for line in (RES / "t5_eval.jsonl").read_text(encoding="utf-8").splitlines()]
+    sources = {r["report_id"]: r["source"] for r in map(json.loads, (RES / "final_eval.jsonl").read_text(encoding="utf-8").splitlines())}
+    by: dict[str, dict] = {}
     for r in rows:
-        by_report.setdefault(r["report_id"], {})[r["system"]] = r
-    verifier, items = Verifier(), []
-    for rid, pair in by_report.items():
-        if len(pair) < 2:
-            continue
-        plain, best = pair["plain"], pair["best_of_n"]
-        ex = {"id": rid, "source": plain["source"], "n_candidates": best.get("n_candidates", 0),
-              "acceptable": best.get("acceptable", False),
-              "plain": {"text": plain["output"], "explain": verifier.explain(plain["source"], plain["output"])},
-              "selected": {"text": best["output"], "explain": verifier.explain(plain["source"], best["output"])}}
-        for side in ("plain", "selected"):
-            ex[side]["explain"]["sentences"] = annotate(ex[side]["explain"]["sentences"])
-        ex["delta"] = ex["selected"]["explain"]["score"]["total"] - ex["plain"]["explain"]["score"]["total"]
-        ex["levels"] = ex["plain"]["explain"]["summary"]["source_levels"]
-        ex["hedged"] = sum(s["level"] != "definite" for s in ex["plain"]["explain"]["source_sentences"])
-        items.append(ex)
-
+        by.setdefault(r["report_id"], {})[r["system"]] = r
+    items = []
+    for rid, d in by.items():
+        status = d["hybrid_guard"]["status"]
+        total = sum(status.values())
+        items.append({"id": rid, "source": sources[rid], "rules": d["rules"]["text"], "hybrid": d["hybrid_guard"]["text"],
+                      "drop": d["original"]["fk"] - d["hybrid_guard"]["fk"], "fk": d["original"]["fk"],
+                      "model": status.get("rewritten", 0), "rules_n": status.get("rules", 0), "total": total,
+                      "model_share": status.get("rewritten", 0) / max(total, 1),
+                      "hedged": sum(w in sources[rid].lower() for w in ("possible", "may ", "likely", "suggest", "cannot be", "probable"))})
     chosen: list[tuple[str, dict]] = []
 
-    def take(title: str, candidates: list[dict], key):
-        pool = [c for c in candidates if all(c is not x for _, x in chosen)]
+    def take(title, pool, key):
+        pool = [i for i in pool if all(i is not x for _, x in chosen)]
         if pool:
             chosen.append((title, max(pool, key=key)))
 
-    has_number = [i for i in items if numbers.extract(i["source"])]
-    restored = [i for i in items if i["plain"]["explain"]["summary"]["dropped_levels"]
-                and not i["selected"]["explain"]["summary"]["dropped_levels"]]
-    sided = [i for i in items if numbers.sides(i["source"])]
-    take("Biggest gain from checking", items, lambda i: i["delta"])
-    take("A number in the report", has_number, lambda i: i["delta"])
-    take("Hedge restored", restored, lambda i: i["delta"])
-    take("Left / right in the report", sided, lambda i: i["delta"])
-    take("Checker found nothing better", [i for i in items if i["delta"] <= 0], lambda i: -i["delta"])
-    take("Both drafts clean", [i for i in items if issues(i["plain"]["explain"]) + issues(i["selected"]["explain"]) == 0],
-         lambda i: i["delta"])
+    take("Biggest reading-level drop", items, lambda i: i["drop"])
+    take("A number in the report", [i for i in items if numbers.extract(i["source"])], lambda i: i["drop"])
+    take("Left / right in the report", [i for i in items if numbers.sides(i["source"])], lambda i: i["drop"])
     take("Most hedged report", items, lambda i: i["hedged"])
-    take("Another case", items, lambda i: i["delta"])
+    take("Mostly written by the model", items, lambda i: i["model_share"])
+    take("Mostly rule-based (model sentences rejected)", [i for i in items if i["total"] >= 5], lambda i: -i["model_share"])
+    take("Already simple", items, lambda i: -i["fk"])
+    take("Another case", items, lambda i: i["drop"])
 
-    examples = []
-    for n, (title, ex) in enumerate(chosen, 1):
-        ex = {k: v for k, v in ex.items() if k not in ("delta", "levels", "hedged")}
-        examples.append({**ex, "title": f"{n}. {title}", "note": NOTE})
+    verifier, examples = Verifier(), []
+    for n, (title, i) in enumerate(chosen, 1):
+        ex = {"id": i["id"], "source": i["source"], "n_candidates": i["model"], "acceptable": True,
+              "units": {"model": i["model"], "rules": i["rules_n"], "total": i["total"]},
+              "plain": {"text": i["rules"], "explain": verifier.explain(i["source"], i["rules"])},
+              "selected": {"text": i["hybrid"], "explain": verifier.explain(i["source"], i["hybrid"])},
+              "title": f"{n}. {title}", "note": NOTE}
+        for side in ("plain", "selected"):
+            ex[side]["explain"]["sentences"] = annotate(ex[side]["explain"]["sentences"])
+        examples.append(ex)
     OUT.write_text(json.dumps(examples), encoding="utf-8")
     print(f"{len(examples)} examples from {len(items)} reports -> {OUT}")
     for e in examples:
-        print(f"  {e['title']:<36} report {e['id']:>5}  plain {e['plain']['explain']['score']['total']:.2f} "
-              f"selected {e['selected']['explain']['score']['total']:.2f}")
+        print(f"  {e['title']:<48} report {e['id']:>5}  model sentences {e['units']['model']}/{e['units']['total']}")
 
 
 if __name__ == "__main__":
