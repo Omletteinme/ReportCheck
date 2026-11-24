@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md
 
-Single self-contained description of this project, written so a person or an AI that has only this file can understand it. Last updated 2026-11-03 (after the UI redesign, file upload and figures folder). Repo: https://github.com/Omletteinme/ReportCheck (public). `README.md` has setup/run commands only.
+Single self-contained description of this project, written so a person or an AI that has only this file can understand it. Last updated 2026-11-24 (after the T5 hybrid, its blind labeling, the demo switch to the hybrid and the project Gantt chart). Repo: https://github.com/Omletteinme/ReportCheck (public). `README.md` has setup/run commands only.
 
 **TL;DR.** University NLP course project (4-person student team, RV University, Bengaluru; interim review about 2026-11-04, final deadline first week of December 2026). It turns radiology reports into patient-friendly text with a small *pretrained, unmodified* LLM (Qwen2.5-1.5B-Instruct) and adds an original **verifier** that checks whether a rewrite kept the report's meaning, numbers, left/right sides, severity words, comparisons, level of certainty (hedges such as "possible", "likely") and key content. The verifier picks the best of about 11 drafts ("best-of-N") and drives a local web demo with a 3D body map. **Nothing has been fine-tuned**; a DPO training step was planned and is paused. Runs locally on one RTX 4060 Laptop GPU (8 GB). Every quality label so far was assigned by an AI (Claude), not by humans. Prototype, not a clinical tool.
 
@@ -127,11 +127,12 @@ Verifier: NLI is noisy on paraphrase and negation (coverage misses "pleuritis" v
 ## 11. Pending / next steps
 - **Main focus is simplification; the live system is the T5 hybrid with rules as the safer baseline.** Next: have a teammate or clinician review `data/plain_rules.csv` and hand-check ~40 outputs; split the labeled results by the 59 evaluation reports that are also in BioLaySumm; random-pick ablation for best-of-N; update `figures/` and `paper_pack/` with the four-system table; update `scripts/capture_screenshots.py` (it still clicks the old Quick check button and old example chips).
 - Teammate human labels and the glossary review (labeling package in `results/human_labeling/`; user said they cannot collect these for now). Do not present AI labels as human.
+- Timeline: `scripts/make_gantt.py` draws `results/review/project_gantt.png/.svg` (edit its `TASKS`, `TODAY`, `FINAL`, then rerun). Its "Today" line is still 2026-11-16 and the final deadline (2026-12-03) is an assumption (the course says first week of December); planned dates are proposals.
 - Slide outline `results/review/SLIDES.md` not written. Final write-up needs the framing in section 1 and the caveats in section 10.
 - Optional: comprehension-question evaluation, DPO pairs (only 15 of 645 train reports have candidates), a stronger generator, fixing glossary wording errors in model output, hard coverage threshold if NLI noise is reduced.
 
 ## 12. Rules and constraints
-- Do not claim a trained model, do not present synthetic reports as real, do not present AI labels as human labels. Do not change `data/split.json` or labeled files. Keep `results/human_labeling/claude_key.csv` private until teammates finish.
+- Do not claim the original Qwen best-of-N system was trained (only the T5 hybrid is fine-tuned; say what its training data is: AI-written BioLaySumm targets, licence unstated), do not present synthetic reports as real, do not present AI labels as human labels. Do not change `data/split.json` or labeled files. Keep `results/human_labeling/claude_key.csv` private until teammates finish.
 - 8 GB VRAM, slow internet, deadline first week of December 2026. Never use the global Python.
 - Code conventions: plain Python 3.11, type hints, short docstrings stating the why, one test file per module, injected `entail_fn` so tests run without models. Edit files with the editor tools, not shell heredocs (escape characters get corrupted).
 - Credits: Open-i (NLM), PLABA, BodyParts3D (CC BY 4.0, credit shown on the page), three.js, GSAP.
